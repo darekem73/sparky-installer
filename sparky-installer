@@ -1724,8 +1724,8 @@ apt-get purge --yes live-*
 apt-get purge --yes gparted
 apt-get purge --yes calamares
 apt-get purge --yes mc
-apt-get purge --yes lvm2
-apt-get purge --yes cryptsetup
+#apt-get purge --yes lvm2
+#apt-get purge --yes cryptsetup
 apt-get autoremove --yes
 #update-initramfs -t -c -k $(/bin/uname -r)
 update-initramfs -t -c -k all
