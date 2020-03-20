@@ -340,6 +340,8 @@ GUILOG="cli"
 	#TARGETSWAP=`lsblk -l | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | grep "[0-9]" | grep -v $TARGETEFI`
 	if [ "$TARGETEFI" != "" ]; then
 		#TARGETSWAP=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | grep -v "$TARGETEFI" | cut -f1 -d":"`
+		echo $(lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | grep -v "loop" | grep -v "sr0")
+		echo $TARGETEFI
 		TARGETSWAP=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | grep -v "loop" | grep -v "sr0" | grep -v "$TARGETEFI" | awk '{print $1}'`
 	else
 		TARGETSWAP=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | cut -f1 -d":"`
@@ -353,7 +355,7 @@ GUILOG="cli"
 	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL28\n$LOCAL29" $HEIGHT $WIDTH $MENUHEIGHT Exit "$LOCAL21" $swappartmenu 2>/tmp/choice.$$
 	if [ "$?" = "0" ]; then
 		SWAP=`cat /tmp/choice.$$`
-		SWAP="$SWAP:"
+		SWAP="$SWAP"
 	else
 		SWAP="Exit"
 	fi
@@ -386,7 +388,7 @@ GUILOG="cli"
 
 	if [ "$?" = "0" ]; then
 		TARGETPART=`cat /tmp/choice.$$`
-		TARGETPART="$TARGETPART:"
+		TARGETPART="$TARGETPART"
 	else
 		TARGETPART="Exit"
 	fi
@@ -448,11 +450,11 @@ GUILOG="cli"
 	fi
 
 	# set partitions with no ":"
-	if [ "$TESTEFI" != "" ]; then
-		TARGETEFI=`echo $TARGETEFI | cut -f1 -d":"`
-	fi
-	SWAP=`echo $SWAP | cut -f1 -d":"`
-	TARGETPART=`echo $TARGETPART | cut -f1 -d":"`
+	#if [ "$TESTEFI" != "" ]; then
+	#	TARGETEFI=`echo $TARGETEFI | cut -f1 -d":"`
+	#fi
+	#SWAP=`echo $SWAP | cut -f1 -d":"`
+	#TARGETPART=`echo $TARGETPART | cut -f1 -d":"`
 
 	#check mode and get new user info if it is a dist mode
 	testmode=`grep "1000" /etc/passwd | grep -v "Live"`
