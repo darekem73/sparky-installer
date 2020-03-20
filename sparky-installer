@@ -309,7 +309,7 @@ GUILOG="cli"
 
 		if [ "$?" = "0" ]; then
 			TARGETEFI=`cat /tmp/choice.$$`
-			TARGETEFI="$TARGETEFI:"
+			TARGETEFI="$TARGETEFI"
 		else
 			TARGETEFI="Exit"
 		fi
@@ -1226,7 +1226,7 @@ if [ "$TESTEFI" != "" ]; then
 fi
 
 #get the cdrom device for fstab
-TARGETCDROM="cdrom"
+TARGETCDROM="/dev/sr0"
 
 sleep 1
 if [ "$GUI" != "" ]; then
