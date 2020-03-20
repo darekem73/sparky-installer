@@ -271,7 +271,7 @@ GUILOG="cli"
 	$DIALOG $TITLE"$TITLETEXT" $MSGBOX $TEXT"$PARTITIONTEXT" $HEIGHT $WIDTH
 	#choose the drive to partition
 	#DRIVES=`cat /proc/partitions | grep -v loop | grep -v major | grep -v "^$" | awk '{print $4}' | grep -v "[0-9]"`
-	DRIVES=`lsblk -l | grep 'disk' | awk '{print $1}'`
+	DRIVES=`lsblk -l -p | grep 'disk' | awk '{print $1}'`
 
 	for i in $DRIVES; do
 		partdrive="$i"
@@ -294,11 +294,13 @@ GUILOG="cli"
 		exit 1
 	fi
 
-	$PARTITIONPROG /dev/$PARTDRIVE
+	$PARTITIONPROG $PARTDRIVE
+
+	EXCLUDEDPARTS="loop|sr0"
 
 	# find a partiton for efi image
 	if [ "$TESTEFI" != "" ]; then
-		PARTEFI=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | grep -v "loop" | grep -v "sr0" | awk '{print $1}'`
+		PARTEFI=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | egrep -v $EXCLUDEDPARTS | awk '{print $1}'`
 		for i in $PARTEFI; do
 			efipart="$i"
 			efipartsize=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$i" | awk '{print $2}'`
@@ -331,8 +333,10 @@ GUILOG="cli"
 		fi
 
 		rm /tmp/choice.$$
+		
+		EXCLUDEDPARTS="$EXCLUDEDPARTS|$TARGETEFI"
 	fi
-	
+
 	#find the swap partition
 	#TARGETSWAP=`fdisk -l | grep swap | awk '{print $1}' | cut -d "/" -f3`
 	#TARGETSWAP=`cat /proc/partitions | grep -v "loop" | grep -v "sr0" | awk '{print $4}' | grep "[0-9]"`
@@ -340,11 +344,10 @@ GUILOG="cli"
 	#TARGETSWAP=`lsblk -l | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | grep "[0-9]" | grep -v $TARGETEFI`
 	if [ "$TARGETEFI" != "" ]; then
 		#TARGETSWAP=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | grep -v "$TARGETEFI" | cut -f1 -d":"`
-		echo $(lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | grep -v "loop" | grep -v "sr0")
-		echo $TARGETEFI
-		TARGETSWAP=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | grep -v "loop" | grep -v "sr0" | grep -v "$TARGETEFI" | awk '{print $1}'`
+		TARGETSWAP=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | egrep -v $EXCLUDEDPARTS | awk '{print $1}'`
 	else
-		TARGETSWAP=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | cut -f1 -d":"`
+		#TARGETSWAP=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | cut -f1 -d":"`
+		TARGETSWAP=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | egrep -v $EXCLUDEDPARTS | awk '{print $1}'`
 	fi
 	for i in $TARGETSWAP; do
 		swappart="$i"
@@ -367,14 +370,18 @@ GUILOG="cli"
 		exit 1
 	fi
 
+	EXCLUDEDPARTS="$EXCLUDEDPARTS|$SWAP"
+
 	#choose the partition to install to
 	#PARTITIONS=`cat /proc/partitions | grep -v "loop" | grep -v "sr0" | awk '{print $4}' | grep "[0-9]"`
 	#PARTITIONS=`lsblk -l | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | grep "[0-9]" | grep -v $TARGETEFI | grep -v $SWAP`
 	if [ "$TARGETEFI" != "" ]; then
 		#PARTITIONS=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | grep -v "$TARGETEFI" | grep -v "$SWAP" | cut -f1 -d":"`
-		PARTITIONS=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | grep -v "loop" | grep -v "sr0" | grep -v "$TARGETEFI" | grep -v "$SWAP" | awk '{print $1}'`
+		#PARTITIONS=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | grep -v "loop" | grep -v "sr0" | grep -v "$TARGETEFI" | grep -v "$SWAP" | awk '{print $1}'`
+		PARTITIONS=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | egrep -v $EXCLUDEDPARTS | awk '{print $1}'`
 	else
-		PARTITIONS=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | grep -v "$SWAP" | cut -f1 -d":"`
+		#PARTITIONS=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | grep -v "$SWAP" | cut -f1 -d":"`
+		PARTITIONS=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | egrep -v $EXCLUDEDPARTS | awk '{print $1}'`
 	fi
 	PARTINST=`echo $PARTITIONS`
 
@@ -400,6 +407,8 @@ GUILOG="cli"
 		exit 1
 	fi
 
+	EXCLUDEDPARTS="$EXCLUDEDPARTS|$TARGETPART"
+
 	#choose filesystem type
 	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL32" $HEIGHT $WIDTH $MENUHEIGHT btrfs "Btrfs $LOCAL33" ext2 "Ext2 $LOCAL33" ext3 "Ext3 $LOCAL33" ext4 "Ext4 $LOCAL33" xfs "Xfs $LOCAL33" 2>/tmp/choice.$$
 
@@ -414,9 +423,11 @@ GUILOG="cli"
 	#HOMEINST=`echo $PARTINST | sed -r "s/$TARGETPART://"`
 	if [ "$TARGETEFI" != "" ]; then
 		#HOMEINST=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | grep -v "$TARGETEFI" | grep -v "$SWAP" | grep -v "$TARGETPART" | cut -f1 -d":"`
-		HOMEINST=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | grep -v "loop" | grep -v "sr0" | grep -v "$TARGETEFI" | grep -v "$SWAP" | grep -v "$TARGETPART" |  awk '{print $1}'`
+		#HOMEINST=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | grep -v "loop" | grep -v "sr0" | grep -v "$TARGETEFI" | grep -v "$SWAP" | grep -v "$TARGETPART" |  awk '{print $1}'`
+		HOMEINST=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | egrep -v $EXCLUDEDPARTS | awk '{print $1}'`
 	else
-		HOMEINST=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | grep -v "$SWAP" | grep -v "$TARGETPART" | cut -f1 -d":"`
+		#HOMEINST=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | grep -v "$SWAP" | grep -v "$TARGETPART" | cut -f1 -d":"`
+		HOMEINST=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | egrep -v $EXCLUDEDPARTS | awk '{print $1}'`
 	fi
 
 	for i in $HOMEINST; do
@@ -448,6 +459,57 @@ GUILOG="cli"
 		rm /tmp/choice.$$
 
 	fi
+
+	EXCLUDEDPARTS="$EXCLUDEDPARTS|$HOMEPART"
+
+	#time to mount additional partitions
+
+	#PARTITIONS=`cat /proc/partitions | grep -v "loop" | grep -v "sr0" | awk '{print $4}' | grep "[0-9]"`
+	#PARTITIONS=`lsblk -l | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | grep "[0-9]" | grep -v $TARGETEFI | grep -v $SWAP`
+	if [ "$TARGETEFI" != "" ]; then
+		#PARTITIONS=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | grep -v "$TARGETEFI" | grep -v "$SWAP" | cut -f1 -d":"`
+		#PARTITIONS=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | grep -v "loop" | grep -v "sr0" | grep -v "$TARGETEFI" | grep -v "$SWAP" | awk '{print $1}'`
+		PARTITIONS=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | egrep -v $EXCLUDEDPARTS | awk '{print $1}'`
+	else
+		#PARTITIONS=`blkid | grep -v "loop" | grep -v "sr0" | awk '{print $1}' | cut -f3 -d"/" | grep "[0-9]" | grep -v "$SWAP" | cut -f1 -d":"`
+		PARTITIONS=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | egrep -v $EXCLUDEDPARTS | awk '{print $1}'`
+	fi
+	PARTINST=`echo $PARTITIONS`
+
+	for i in $PARTITIONS; do
+		part="$i"
+		partsize=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$i" | awk '{print $2}'`
+		partmenu="$partmenu $part $partsize"
+	done
+
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select additional partitions to mount\nSelect exit to finish" $HEIGHT $WIDTH $MENUHEIGHT Exit "$LOCAL21" $partmenu 2>/tmp/choice.$$
+
+	if [ "$?" = "0" ]; then
+		PARTTOMOUNT=`cat /tmp/choice.$$`
+		PARTTOMOUNT="$PARTTOMOUNT"
+	else
+		PARTTOMOUNT="Exit"
+	fi
+
+	rm /tmp/choice.$$
+
+	if [ "$PARTTOMOUNT" = "Exit" ]; then
+		;
+		#$DIALOG $TITLE"$TITLETEXT" $MSGBOX $TEXT"$LOCAL22" $HEIGHT $WIDTH
+		#exit 1
+	fi
+
+	#mountpoint
+	$DIALOG $TITLE"$TITLETEXT" $ENTRY $TEXT"Enter mount point" $HEIGHT $WIDTH 2>/tmp/choice.$$
+	if [ "$?" = "0" ]; then
+		MOUNTPOINT=`cat /tmp/choice.$$`
+	else
+		exit 1
+	fi
+
+	rm /tmp/choice.$$
+
+	#EXCLUDEDPARTS="$EXCLUDEDPARTS|$TARGETPART"
 
 	# set partitions with no ":"
 	#if [ "$TESTEFI" != "" ]; then
@@ -1201,8 +1263,8 @@ if [ "$HOMEPART" != "root" ]; then
 
 fi
 
-mkdir -p /TARGET/boot
-mount /dev/sda2 /TARGET/boot
+mkdir -p /TARGET/$MOUNTPOINT
+mount $PARTTOMOUNT /TARGET/$MOUNTPOINT
 
 #format and mount efi part
 if [ "$TESTEFI" != "" ]; then
