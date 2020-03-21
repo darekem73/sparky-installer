@@ -493,11 +493,11 @@ GUILOG="cli"
 
 	rm /tmp/choice.$$
 
-	if [ "$PARTTOMOUNT" = "Exit" ]; then
-		;
+	#if [ "$PARTTOMOUNT" = "Exit" ]; then
+		
 		#$DIALOG $TITLE"$TITLETEXT" $MSGBOX $TEXT"$LOCAL22" $HEIGHT $WIDTH
 		#exit 1
-	fi
+	#fi
 
 	#mountpoint
 	$DIALOG $TITLE"$TITLETEXT" $ENTRY $TEXT"Enter mount point" $HEIGHT $WIDTH 2>/tmp/choice.$$
@@ -1263,8 +1263,10 @@ if [ "$HOMEPART" != "root" ]; then
 
 fi
 
-mkdir -p /TARGET/$MOUNTPOINT
-mount $PARTTOMOUNT /TARGET/$MOUNTPOINT
+if [ "$MOUNTPOINT" != "" ]; then
+	mkdir -p /TARGET/$MOUNTPOINT
+	mount $PARTTOMOUNT /TARGET/$MOUNTPOINT
+fi
 
 #format and mount efi part
 if [ "$TESTEFI" != "" ]; then
