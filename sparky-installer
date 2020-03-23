@@ -515,9 +515,9 @@ GUILOG="cli"
 		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL37" $HEIGHT $WIDTH $MENUHEIGHT noformat "$LOCAL38" ext2 "Ext2 $LOCAL33" ext3 "Ext3 $LOCAL33" ext4 "Ext4 $LOCAL33" 2>/tmp/choice.$$
 
 		if [ "$?" = "0" ]; then
-			PARTTOMOUNTHFSTYPE=`cat /tmp/choice.$$`
+			PARTTOMOUNTFSTYPE=`cat /tmp/choice.$$`
 		else
-			PARTTOMOUNTHFSTYPE="ext4"
+			PARTTOMOUNTFSTYPE="ext4"
 		fi
 
 		rm /tmp/choice.$$
@@ -1281,7 +1281,7 @@ fi
 #mount and format additional partition
 if [ "$MOUNTPOINT" != "" ]; then
 
-	if [ "$PARTTOMOUNTHFSTYPE" != "noformat" ]; then
+	if [ "$PARTTOMOUNTFSTYPE" != "noformat" ]; then
 		if [ "$GUI" != "" ]; then
 			progressbar "$LOCAL93 $PARTTOMOUNT $LOCAL86 $LOCAL91 ... $LOCAL92 ... \n" &
 		fi
@@ -1293,11 +1293,11 @@ if [ "$MOUNTPOINT" != "" ]; then
 			umount $PARTTOMOUNT
 		fi
 
-		if [ "$PARTTOMOUNTHFSTYPE" = "ext4" ] || [ "$PARTTOMOUNTHFSTYPE" = "ext3" ] || [ "$PARTTOMOUNTHFSTYPE" = "ext2" ]; then
-			mke2fs -t $PARTTOMOUNTHFSTYPE -F $PARTTOMOUNT
+		if [ "$PARTTOMOUNTFSTYPE" = "ext4" ] || [ "$PARTTOMOUNTFSTYPE" = "ext3" ] || [ "$PARTTOMOUNTFSTYPE" = "ext2" ]; then
+			mke2fs -t $PARTTOMOUNTFSTYPE -F $PARTTOMOUNT
 		fi
-	elif [ "$PARTTOMOUNTHFSTYPE" = "noformat" ]; then
-		PARTTOMOUNTHFSTYPE=`blkid | grep $PARTTOMOUNT: | awk '{print $3}' | cut -f2 -d"=" | sed -e 's/"//g'`
+	elif [ "$PARTTOMOUNTFSTYPE" = "noformat" ]; then
+		PARTTOMOUNTFSTYPE=`blkid | grep $PARTTOMOUNT: | awk '{print $3}' | cut -f2 -d"=" | sed -e 's/"//g'`
 	fi
 
 	echo "$LOCAL97"
@@ -1310,8 +1310,8 @@ if [ "$MOUNTPOINT" != "" ]; then
 	sleep 2
 
 	# Get fs type for home partition in case the user chose not to format
-	if [ "$PARTTOMOUNT" = "noformat" ]; then
-		PARTTOMOUNTHFSTYPE=`mount | grep "$PARTTOMOUNT" | awk '{print $5}'`
+	if [ "$PARTTOMOUNTFSTYPE" = "noformat" ]; then
+		PARTTOMOUNTFSTYPE=`mount | grep "$PARTTOMOUNT" | awk '{print $5}'`
 	fi
 
 	if [ "$GUI" != "" ]; then
