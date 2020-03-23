@@ -1296,13 +1296,14 @@ if [ "$MOUNTPOINT" != "" ]; then
 		if [ "$PARTTOMOUNTFSTYPE" = "ext4" ] || [ "$PARTTOMOUNTFSTYPE" = "ext3" ] || [ "$PARTTOMOUNTFSTYPE" = "ext2" ]; then
 			mke2fs -t $PARTTOMOUNTFSTYPE -F $PARTTOMOUNT
 		fi
+
 	elif [ "$PARTTOMOUNTFSTYPE" = "noformat" ]; then
 		PARTTOMOUNTFSTYPE=`blkid | grep $PARTTOMOUNT: | awk '{print $3}' | cut -f2 -d"=" | sed -e 's/"//g'`
 	fi
 
 	echo "$LOCAL97"
 	mkdir -p /TARGET/$MOUNTPOINT
-	if [ "$PARTTOMOUNHFSTYPE" = "ext4" ] || [ "$PARTTOMOUNHFSTYPE" = "ext3" ] || [ "$PARTTOMOUNHFSTYPE" = "ext2" ]; then
+	if [ "$PARTTOMOUNTFSTYPE" = "ext4" ] || [ "$PARTTOMOUNTFSTYPE" = "ext3" ] || [ "$PARTTOMOUNTFSTYPE" = "ext2" ]; then
 		mount $PARTTOMOUNT /TARGET/$MOUNTPOINT -o rw
 		tune2fs -c 0 -i 0 $PARTTOMOUNT
 	fi
