@@ -509,6 +509,20 @@ GUILOG="cli"
 
 	rm /tmp/choice.$$
 
+	if [ "$PARTTOMOUNT" != "Exit" ]; then
+		#choose filesystem type
+		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL37" $HEIGHT $WIDTH $MENUHEIGHT noformat "$LOCAL38" ext2 "Ext2 $LOCAL33" ext3 "Ext3 $LOCAL33" ext4 "Ext4 $LOCAL33" 2>/tmp/choice.$$
+
+		if [ "$?" = "0" ]; then
+			PARTTOMOUNTHFSTYPE=`cat /tmp/choice.$$`
+		else
+			PARTTOMOUNTHFSTYPE="ext4"
+		fi
+
+		rm /tmp/choice.$$
+
+	fi
+
 	#EXCLUDEDPARTS="$EXCLUDEDPARTS|$TARGETPART"
 
 	# set partitions with no ":"
@@ -1263,9 +1277,44 @@ if [ "$HOMEPART" != "root" ]; then
 
 fi
 
+#mount and format additional partition
 if [ "$MOUNTPOINT" != "" ]; then
+	if [ "$PARTTOMOUNTHFSTYPE" != "noformat" ]; then
+		if [ "$GUI" != "" ]; then
+			progressbar "$LOCAL93 $PARTTOMOUNT $LOCAL86 $LOCAL91 ... $LOCAL92 ... \n" &
+		fi
+
+		echo "$LOCAL93 $PARTTOMOUNT $LOCAL86 $LOCAL91 ... $LOCAL92 ..."
+
+		if [ "`mount | grep $PARTTOMOUNT`" ]; then
+			echo "$LOCAL94"
+			umount $PARTTOMOUNT
+		fi
+
+		if [ "$PARTTOMOUNTHFSTYPE" = "ext4" ] || [ "$PARTTOMOUNTHFSTYPE" = "ext3" ] || [ "$PARTTOMOUNTHFSTYPE" = "ext2" ]; then
+			mke2fs -t $PARTTOMOUNTHFSTYPE -F $PARTTOMOUNT
+		fi
+	elif [ "$PARTTOMOUNTHFSTYPE" = "noformat" ]; then
+		HFSTYPE=`blkid | grep $PARTTOMOUNT: | awk '{print $3}' | cut -f2 -d"=" | sed -e 's/"//g'`
+	fi
+
+	echo "$LOCAL97"
 	mkdir -p /TARGET/$MOUNTPOINT
-	mount $PARTTOMOUNT /TARGET/$MOUNTPOINT
+	if [ "$PARTTOMOUNHFSTYPE" = "ext4" ] || [ "$PARTTOMOUNHFSTYPE" = "ext3" ] || [ "$PARTTOMOUNHFSTYPE" = "ext2" ]; then
+		mount $PARTTOMOUNT /TARGET/$MOUNTPOINT -o rw
+		tune2fs -c 0 -i 0 $PARTTOMOUNT
+	fi
+	rm -rf "/TARGET/$MOUNTPOINT/lost+found"
+	sleep 2
+
+	# Get fs type for home partition in case the user chose not to format
+	if [ "$PARTTOMOUNT" = "noformat" ]; then
+		HFSTYPE=`mount | grep "$PARTTOMOUNT" | awk '{print $5}'`
+	fi
+
+	if [ "$GUI" != "" ]; then
+		killall -KILL tail
+	fi
 fi
 
 #format and mount efi part
