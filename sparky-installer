@@ -1431,8 +1431,8 @@ echo "$LOCAL103 ... $LOCAL92 ..."
 #prepare the chroot environment for some post install changes
 mount -o bind /proc /TARGET/proc
 mount -o bind /dev /TARGET/dev
-mount -o bind shm /TARGETshm
-mount -o bind pts /TARGETpts
+mount -o bind /dev/shm /TARGET/dev/shm
+mount -o bind /dev/pts /TARGET/dev/pts
 mount -o bind /sys /TARGET/sys
 rm -f /TARGET/etc/fstab
 rm -f /TARGET/etc/profile.d/zz-live.sh
