@@ -275,7 +275,8 @@ GUILOG="cli"
 
 	for i in $DRIVES; do
 		partdrive="$i"
-		partdrivesize=`grep -m 1 "$i" /proc/partitions | awk '{print $3}'`
+		#partdrivesize=`grep -m 1 "$i" /proc/partitions | awk '{print $3}'`
+		partdrivesize=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$i" | awk '{print $2}'`
 		partdrivemenu="$partdrivemenu $partdrive $partdrivesize"
 	done
 
@@ -1966,6 +1967,7 @@ $DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"$LOCAL113\n$PASTEGRUB\n$LOCAL114\n$PASTE
 if [ $? != 0 ]; then
 	exit 0
 else
+	echo "Remember to chroot"
 	#reboot
 fi
 
