@@ -445,6 +445,6 @@ mount_partitions() {
 
 # START PARTITIONING
 partitioner
-echo $PARTS_TO_MOUNT
+echo $PARTS_TO_MOUNT > t
 #echo $EXCLUDED_PARTS
 #mount_partitions
