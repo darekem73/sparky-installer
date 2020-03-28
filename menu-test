@@ -434,6 +434,7 @@ mount_partitions() {
 				mke2fs -t $FS -F $PART
 				sleep 2
 			fi
+			echo $MOUNT
 			mkdir -p /TARGET/$MOUNT
 			mount $PART /TARGET/$MOUNT -o rw
 			sleep 2
@@ -444,6 +445,6 @@ mount_partitions() {
 
 # START PARTITIONING
 partitioner
-#echo $PARTS_TO_MOUNT
+echo $PARTS_TO_MOUNT
 #echo $EXCLUDED_PARTS
-mount_partitions
+#mount_partitions
