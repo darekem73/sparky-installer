@@ -15,11 +15,11 @@
 # checking to make sure script is running with root privileges
 # remove stored language setting if any
 
-#testroot="`whoami`"
-#if [ "$testroot" != "root" ]; then
-#        echo "Must be run as root... Exiting now..."
-#        exit 1
-#fi
+testroot="`whoami`"
+if [ "$testroot" != "root" ]; then
+        echo "Must be run as root... Exiting now..."
+        exit 1
+fi
 
 TESTEFI0=`lsmod | grep efi`
 if [ -d /sys/firmware/efi/efivars ] || [ "$TESTEFI0" != "" ]; then
@@ -28,17 +28,10 @@ else
         TESTEFI=""
 fi
 
+PARTITIONPROG=cfdisk
+AUTOPARTITIONPROGRAM=fdisk
+
 CHOICE_FILE=/tmp/choice.$$
-#PARTS_TO_MOUNT=""
-EXCLUDED_PARTS="loop|sr0|disk"
-
-if [ "$TESTEFI" != "" ]; then
-	MANDATORY_PARTS="efi"
-else
-	MANDATORY_PARTS=""
-fi
-
-MANDATORY_PARTS="$MANDATORY_PARTS root swap home"
 
 drive_to_part() {
 	DRIVES=`lsblk -l -p | grep 'disk' | awk '{print $1}'`
@@ -51,7 +44,7 @@ drive_to_part() {
 	
 	dialog --title "Tytul" --menu "Select drive to partition" 40 72 12 Exit "Wyjscie" $partdrivemenu 2>$CHOICE_FILE
 	
-	if [ "$?" = "0" ]; then
+	if [ "$?" == "0" ]; then
 		PARTDRIVE=`cat $CHOICE_FILE`
 		PARTDRIVESIZE=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$PARTDRIVE" | awk '{print $2}'`
 	else
@@ -280,8 +273,7 @@ automatic_partitioning() {
 				#part1 bootable
 			fi
 			;;
-		"3") #lvm aio
-		"4") #lvm separate home
+		"3"|"4") #lvm aio #lvm separate home
 			LVM=1
 			(( BOOTPARTSIZE=500*M ))
 			(( PARTDRIVESIZE=$PARTDRIVESIZE-$BOOTPARTSIZE ))
@@ -300,6 +292,7 @@ automatic_partitioning() {
 
 	#create partitions $PARTS_TO_CREATE
 	echo $PARTS_TO_CREATE
+
 	if [ "$TESTEFI" != "" ]; then
 		echo "g" > $CHOICE_FILE
 	else
@@ -307,7 +300,7 @@ automatic_partitioning() {
 	fi
 	NF=$(echo $PARTS_TO_CREATE | awk -F"|" '{print NF}')
 	for i in `seq $NF`; do
-		CMD=$(echo $PARTS_TO_MOUNT | cut -d "|" -f $i)
+		CMD=$(echo $PARTS_TO_CREATE | cut -d "|" -f $i)
 		PART=$(echo $CMD | cut -d, -f1)
 		TYPE=$(echo $CMD | cut -d, -f2)
 		SIZE=$(echo $CMD | cut -d, -f3)
@@ -317,13 +310,16 @@ automatic_partitioning() {
 		fi
 		echo $PART >> $CHOICE_FILE
 		echo "" >> $CHOICE_FILE
-		if [ "$SIZE" =="" ]; then
+		if [ "$SIZE" == "" ]; then
 			echo "" >> $CHOICE_FILE
 		else
-			echo "+$SIZE" >> $CHOICE_FILE
+			(( SIZE = $SIZE / M ))
+			echo "+$SIZE""M" >> $CHOICE_FILE
 		fi
 		echo "t" >> $CHOICE_FILE
-		echo $PART >> $CHOICE_FILE
+		if [ "$PART" != "1" ]; then
+			echo $PART >> $CHOICE_FILE
+		fi
 		echo $TYPE >> $CHOICE_FILE
 	done
 	if [ "$TESTEFI" == "" ]; then
@@ -331,11 +327,11 @@ automatic_partitioning() {
 		echo "1" >> $CHOICE_FILE
 	fi
 	echo "w" >> $CHOICE_FILE
-	
-	#cat $CHOICE_FILE | fdisk $PARTDRIVE
-	cat $CHOICE_FILE
+
+	#cat $CHOICE_FILE
+	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
 	rm $CHOICE_FILE
-exit
+	
 	if [ $LVM -eq 1 ]; then
 		#create vg
 		pvcreate $LVM_PART_DRIVE
@@ -355,17 +351,17 @@ exit
 				LVS_TO_CREATE="swap,1G,swap,swap|root,$ROOT_PART_SIZE""G,/,ext4|home,,/home,ext4"
 				;;
 		esac
-		NF=$(echo $PARTS_TO_CREATE | awk -F"|" '{print NF}')
+		NF=$(echo $LVS_TO_CREATE | awk -F"|" '{print NF}')
 		for i in `seq $NF`; do
-			CMD=$(echo $PARTS_TO_MOUNT | cut -d "|" -f $i)
+			CMD=$(echo $LVS_TO_CREATE | cut -d "|" -f $i)
 			PART=$(echo $CMD | cut -d, -f1)
 			SIZE=$(echo $CMD | cut -d, -f2)
 			MOUNTPOINT=$(echo $CMD | cut -d, -f3)
 			FSTYPE=$(echo $CMD | cut -d, -f4)
 			if [ "$SIZE" != "" ]; then
-				lvcreate -l $SIZE -n $PART $VG_NAME
+				lvcreate -L $SIZE -n $PART $VG_NAME
 			else
-				lvcreate -L +100%FREE -n $PART $VG_NAME
+				lvcreate -l +100%FREE -n $PART $VG_NAME
 			fi
 			PART_TO_MOUNT=$(lsblk -l -p -b | egrep "$VG_NAME.*$PART" | awk '{print $1}')
 			
@@ -395,36 +391,48 @@ partitioner() {
 	if [ "$PARTSCHEMA" == "Manual" ]; then
 		#manual partitioning
 		$PARTITIONPROG $PARTDRIVE
+
+		EXCLUDED_PARTS="loop|sr0|disk"
+		
+		if [ "$TESTEFI" != "" ]; then
+			MANDATORY_PARTS="efi"
+		else
+			MANDATORY_PARTS=""
+		fi
+		
+		MANDATORY_PARTS="$MANDATORY_PARTS root swap home"
+
 		select_mount_points
 	else
 		automatic_partitioning
 	fi
 }
 
+mount_partitions() {
+	# create commands to mount and make filesystems
+	NF=$(echo $PARTS_TO_MOUNT | awk -F"|" '{print NF}')
+	
+	for i in `seq $NF`; do
+		CMD=$(echo $PARTS_TO_MOUNT | cut -d "|" -f $i)
+		echo ">>> processing $CMD"
+		PART=$(echo $CMD | cut -d, -f1)
+		MOUNT=$(echo $CMD | cut -d, -f2)
+		FS=$(echo $CMD | cut -d, -f3)
+		if [ "$FS" = "swap" ]; then
+			echo "mkswap $PART"
+			echo "swapon $PART"
+		fi
+		echo "mkdir -p /TARGET/$MOUNT"
+		echo "mke2fs -t $FS -F $PART"
+		echo "sleep 2"
+		echo "mount $PART /TARGET/$MOUNT -o rw"
+		echo "sleep 2"
+		echo "tune2fs -c 0 -i -0 $PART"
+	done
+}
 
-
+# START PARTITIONING
 partitioner
-
-echo $PARTS_TO_MOUNT
+#echo $PARTS_TO_MOUNT
 #echo $EXCLUDED_PARTS
-
-# create commands to mount and make filesystems
-NF=$(echo $PARTS_TO_MOUNT | awk -F"|" '{print NF}')
-
-for i in `seq $NF`; do
-	CMD=$(echo $PARTS_TO_MOUNT | cut -d "|" -f $i)
-	echo ">>> processing $CMD"
-	PART=$(echo $CMD | cut -d, -f1)
-	MOUNT=$(echo $CMD | cut -d, -f2)
-	FS=$(echo $CMD | cut -d, -f3)
-	if [ "$FS" = "swap" ]; then
-		echo "mkswap $PART"
-		echo "swapon $PART"
-	fi
-	echo "mkdir -p /TARGET/$MOUNT"
-	echo "mke2fs -t $FS -F $PART"
-	echo "sleep 2"
-	echo "mount $PART /TARGET/$MOUNT -o rw"
-	echo "sleep 2"
-	echo "tune2fs -c 0 -i -0 $PART"
-done
+mount_partitions
