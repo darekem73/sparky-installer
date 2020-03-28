@@ -412,22 +412,28 @@ mount_partitions() {
 	# create commands to mount and make filesystems
 	NF=$(echo $PARTS_TO_MOUNT | awk -F"|" '{print NF}')
 	
+	mkdir -p /TARGET
+
 	for i in `seq $NF`; do
 		CMD=$(echo $PARTS_TO_MOUNT | cut -d "|" -f $i)
-		echo ">>> processing $CMD"
 		PART=$(echo $CMD | cut -d, -f1)
 		MOUNT=$(echo $CMD | cut -d, -f2)
 		FS=$(echo $CMD | cut -d, -f3)
 		if [ "$FS" = "swap" ]; then
-			echo "mkswap $PART"
-			echo "swapon $PART"
+			mkswap $PART
+			swapon $PART
 		fi
-		echo "mkdir -p /TARGET/$MOUNT"
-		echo "mke2fs -t $FS -F $PART"
-		echo "sleep 2"
-		echo "mount $PART /TARGET/$MOUNT -o rw"
-		echo "sleep 2"
-		echo "tune2fs -c 0 -i -0 $PART"
+		if [ "`mount | grep $PART`" ]; then
+			umount $PART
+		fi
+		if [ "$FS" != "noformat" ]; then
+			mke2fs -t $FS -F $PART
+			sleep 2
+		fi
+		mkdir -p /TARGET/$MOUNT
+		mount $PART /TARGET/$MOUNT -o rw
+		sleep 2
+		tune2fs -c 0 -i -0 $PART
 	done
 }
 
