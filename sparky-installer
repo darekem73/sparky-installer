@@ -704,7 +704,7 @@ generate_fstab() {
 		FS=$(echo $CMD | cut -d: -f4)
 		FSTABOPT=$(echo $CMD | cut -d: -f5)
 		DUMP_PASS=$(echo $CMD | cut -d: -f6)
-		echo "# $PART" >> $CHOICE_FILE
+		echo "# $PART" >> $FSTAB_FILE
 		echo "UUID=$UUID	$MOUNT	$FS	$FSTABOPT	$DUMP_PASS" >> $FSTAB_FILE
 	done
 	echo "# cdrom"
