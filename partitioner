@@ -289,11 +289,11 @@ automatic_partitioning() {
 			(( PARTDRIVESIZE=$PARTDRIVESIZE-$BOOTPARTSIZE ))
 			if [ "$TESTEFI" != "" ]; then
 				PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20: "
-				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 0"
+				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 2"
 				LVM_PART_DRIVE="$PARTDRIVE""3"
 			else
 				PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20: "
-				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot:ext4:defaults:0 0"
+				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot:ext4:defaults:0 2"
 				LVM_PART_DRIVE="$PARTDRIVE""2"
 				#part1 bootable
 			fi
@@ -443,7 +443,6 @@ mount_partitions() {
 				mkswap $PART
 				swapon $PART
 			fi
-			UUIDSWAP=$(blkid -o value -s UUID $PART)
 		else
 			if [ "`mount | grep $PART`" ]; then
 				umount $PART
