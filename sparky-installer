@@ -248,7 +248,466 @@ fi
 . /etc/live/config.conf
 . /etc/sparkybackup/sparkybackup.conf
 . /etc/sparkybackup/sparkylinux-installer.conf
-. ~/sparky-installer/partitioner
+
+drive_to_part() {
+	DRIVES=`lsblk -l -p | grep 'disk' | awk '{print $1}'`
+	partdrivemenu=""
+	for i in $DRIVES; do
+		partdrive="$i"
+		partdrivesize=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$i" | awk '{print $2}'`
+		partdrivemenu="$partdrivemenu $partdrive $partdrivesize"
+	done
+	
+	dialog --title "Tytul" --menu "Select drive to partition" 40 72 12 Exit "Wyjscie" $partdrivemenu 2>$CHOICE_FILE
+	
+	if [ "$?" == "0" ]; then
+		PARTDRIVE=`cat $CHOICE_FILE`
+		PARTDRIVESIZE=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$PARTDRIVE" | awk '{print $2}'`
+	else
+		PARTDRIVE="Exit"
+	fi
+	
+	rm $CHOICE_FILE
+}
+
+ask_for_part() {
+	TYPE="$1"
+	PARTITIONS=`lsblk -o NAME,SIZE,TYPE -l -p -b | sed 1D | egrep -v $EXCLUDED_PARTS | awk '{print $1}'`
+	PARTLIST=`echo $PARTITIONS`
+	partmenu=""
+	for i in $PARTLIST; do
+		part="$i"
+		partsize=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$i" | awk '{print $2}'`
+		partmenu="$partmenu $part $partsize"
+	done
+	
+	dialog --title "Tytul" --menu "Select partition for $TYPE" 40 72 12 Exit "Wyjscie" $partmenu 2>$CHOICE_FILE
+	
+	if [ "$?" = "0" ]; then
+		PARTTOMOUNT=`cat $CHOICE_FILE`
+		PARTTOMOUNT="$PARTTOMOUNT"
+	else
+		PARTTOMOUNT="Exit"
+	fi
+	
+	rm $CHOICE_FILE
+}
+
+ask_for_mountpoint() {
+	LOCATION="$1"
+
+	dialog --title "Tytul" --inputbox "Mountpoint for $LOCATION" 40 72 2>$CHOICE_FILE
+	if [ "$?" = "0" ]; then
+                MOUNTPOINT=`cat $CHOICE_FILE`
+        else
+		echo "Error in mountpoint"
+                exit 1
+        fi
+
+        rm $CHOICE_FILE
+}
+
+ask_for_filesystem() {
+	LOCATION="$1"
+	if [ "$2" = "noformat" ]; then
+		NOFORMAT="$2 noformat"
+	else
+		NOFORMAT=""
+	fi
+	dialog --title "Tytul" --menu "Select filesystem for $LOCATION" 40 72 12 $NOFORMAT ext4 "ext4" ext3 "ext3" ext2 "ext2" 2>$CHOICE_FILE
+	
+	if [ "$?" = "0" ]; then
+		FSTYPE=`cat $CHOICE_FILE`
+	else
+	        FSTYPE="ext4"
+	fi
+	
+	rm $CHOICE_FILE
+}
+
+gather_part_data() {
+	PART_TYPE="$1"
+	status=0
+	
+	PARTTOMOUNT=""
+	ask_for_part $PART_TYPE
+
+	if [ "$?" != "0" ]; then
+		exit 1
+	fi
+	
+	case $PART_TYPE in
+		"efi")
+			FSTYPE="vfat"
+			MOUNTPOINT="/boot/efi"
+			if [ "$PARTTOMOUNT" = "Exit" ]; then
+				status=1
+			else 
+				status=0
+			fi
+			FSTABOPT="defaults"
+			DUMP_PASS="0	0"
+			;;
+		"root")
+			MOUNTPOINT="/"
+			FSTYPE=""
+			if [ "$PARTTOMOUNT" = "Exit" ]; then
+				status=1
+			else
+				ask_for_filesystem $PART_TYPE "format"
+				status=0
+			fi
+			FSTABOPT="errors=remount-ro,defaults"
+			DUMP_PASS="0	1"
+			;;
+		"swap")
+			if [ "$PARTTOMOUNT" = "Exit" ]; then
+				FSTYPE="noswap"
+				MOUNTPOINT="noswap"
+				status=0
+			else 
+				FSTYPE="swap"
+				MOUNTPOINT="none"
+				FSTABOPT="sw"
+				DUMP_PASS="0	0"
+				status=0
+			fi
+			;;
+		"home")
+			if [ "$PARTTOMOUNT" = "Exit" ]; then
+				status=0
+			else
+				FSTYPE=""
+				ask_for_filesystem $PART_TYPE "noformat"
+				status=0
+			fi
+			FSTABOPT="defaults"
+			DUMP_PASS="0	2"
+			;;
+		"other")
+			MOUNTPOINT=""
+			FSTYPE=""
+			if [ "$PARTTOMOUNT" = "Exit" ]; then
+				PARTTOMOUNT="Exit"
+				status=0
+			else
+				ask_for_mountpoint $PARTTOMOUNT
+				if [ "$MOUNTPOINT" != "" ]; then
+					ask_for_filesystem $PART_TYPE "noformat"
+					status=0
+				else
+					status=1
+				fi
+			fi
+			FSTABOPT="defaults"
+			DUMP_PASS="0	2"
+			;;
+	esac
+
+	return $status
+}
+
+store_parts() {
+	if [ "$PARTS_TO_MOUNT" = "" ]; then
+		PARTS_TO_MOUNT="$PARTTOMOUNT:$MOUNTPOINT:$FSTYPE:$FSTABOPT:$DUMP_PASS"
+	else
+		PARTS_TO_MOUNT="$PARTS_TO_MOUNT|$PARTTOMOUNT:$MOUNTPOINT:$FSTYPE:$FSTABOPT:$DUMP_PASS"
+	fi
+        EXCLUDED_PARTS="$EXCLUDED_PARTS|$PARTTOMOUNT"
+}
+
+select_mount_points() {
+	# mount mandatory partitions
+	PARTTOMOUNT=""
+	for part in $MANDATORY_PARTS; do
+		gather_part_data $part
+		if [ $? -eq 0 ]; then
+			if [ "$PARTTOMOUNT" != "Exit" ]; then
+				store_parts
+			fi
+		else
+			echo "Error in selecting partitions"
+			exit 1
+		fi
+	done
+	
+	# mount any other partitions
+	PARTTOMOUNT=""
+	while [ "$PARTTOMOUNT" != "Exit" ]; do
+	
+		gather_part_data "other"
+	
+		if [ "$PARTTOMOUNT" != "Exit" ]; then
+			store_parts
+		else
+			break
+		fi
+	
+	done
+}
+
+
+calc_root_size() {
+	target_size=$1
+	status=0
+	ROOT_PART_SIZE=$(awk -v K=1024 -v disksize=$target_size 'BEGIN { M=K^2; G=K^3; size=0; if (disksize > 5*G) { size = int(disksize/3/G)*G; if (size > 30*G) size=30*G}; print size }')
+	if [ $ROOT_PART_SIZE -eq 0 ]; then
+		status=1
+	fi
+
+	return $status
+}
+
+automatic_partitioning() {
+	K=1024
+	(( M=$K*$K ))
+	(( G=$K*$K*$K ))
+	if [ "$TESTEFI" != "" ]; then
+		(( EFIPARTSIZE=500*M ))
+		(( PARTDRIVESIZE=$PARTDRIVESIZE-$EFIPARTSIZE ))
+	fi
+	case $PARTSCHEMA in
+		"1") #aio
+			LVM=0
+			(( SWAPPARTSIZE=1*G ))
+			(( PARTDRIVESIZE=$PARTDRIVESIZE-$SWAPPARTSIZE ))
+			ROOT_PART_SIZE=$PARTDRIVESIZE
+			if [ "$TESTEFI" != "" ]; then
+				PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$ROOT_PART_SIZE|3:19: "
+				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""3:none:swap:sw:0 0"
+			else
+				PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE|2:19: "
+				PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""2:none:swapi:sw:0 0"
+				#part1 bootable
+			fi
+			;;
+		"2") #separate home
+			LVM=0
+			(( SWAPPARTSIZE=1*G ))
+			(( PARTDRIVESIZE=$PARTDRIVESIZE-$SWAPPARTSIZE ))
+			calc_root_size $PARTDRIVESIZE
+			if [ $ROOT_PART_SIZE -eq 0 ]; then
+				exit 1
+			fi
+			(( PARTDRIVESIZE=$PARTDRIVESIZE-$ROOT_PART_SIZE ))
+			if [ "$TESTEFI" != "" ]; then
+				PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$ROOT_PART_SIZE|3:19:$SWAPPARTSIZE|4:20: "
+				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""3:none:swap:sw:0 0|$PARTDRIVE""4:/home:ext4:defaults:0 2"
+			else
+				PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE|2:19:$SWAPPARTSIZE|3:20: "
+				PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""2:none:swap:sw:0 0|$PARTDRIVE""3:/home:ext4:defaults:0 2"
+				#part1 bootable
+			fi
+			;;
+		"3"|"4") #lvm aio #lvm separate home
+			LVM=1
+			(( BOOTPARTSIZE=500*M ))
+			(( PARTDRIVESIZE=$PARTDRIVESIZE-$BOOTPARTSIZE ))
+			if [ "$TESTEFI" != "" ]; then
+				PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20: "
+				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 2"
+				LVM_PART_DRIVE="$PARTDRIVE""3"
+			else
+				PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20: "
+				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot:ext4:defaults:0 2"
+				LVM_PART_DRIVE="$PARTDRIVE""2"
+				#part1 bootable
+			fi
+			;;
+	esac
+
+	#create partitions $PARTS_TO_CREATE
+	echo $PARTS_TO_CREATE
+
+	if [ "$TESTEFI" != "" ]; then
+		echo "g" > $CHOICE_FILE
+	else
+		echo "o" > $CHOICE_FILE
+	fi
+	NF=$(echo $PARTS_TO_CREATE | awk -F"|" '{print NF}')
+	for i in `seq $NF`; do
+		CMD=$(echo $PARTS_TO_CREATE | cut -d "|" -f $i)
+		PART=$(echo $CMD | cut -d: -f1)
+		TYPE=$(echo $CMD | cut -d: -f2)
+		SIZE=$(echo $CMD | cut -d: -f3)
+		echo "n" >> $CHOICE_FILE
+		if [ "$TESTEFI" == "" ]; then
+			echo "p" > $CHOICE_FILE
+		fi
+		echo $PART >> $CHOICE_FILE
+		echo "" >> $CHOICE_FILE
+		if [ "$SIZE" == "" ]; then
+			echo "" >> $CHOICE_FILE
+		else
+			(( SIZE = $SIZE / M ))
+			echo "+$SIZE""M" >> $CHOICE_FILE
+		fi
+		echo "t" >> $CHOICE_FILE
+		if [ "$PART" != "1" ]; then
+			echo $PART >> $CHOICE_FILE
+		fi
+		echo $TYPE >> $CHOICE_FILE
+	done
+	if [ "$TESTEFI" == "" ]; then
+		echo "a" >> $CHOICE_FILE
+		echo "1" >> $CHOICE_FILE
+	fi
+	echo "w" >> $CHOICE_FILE
+
+	#cat $CHOICE_FILE
+	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
+	rm $CHOICE_FILE
+	
+	if [ $LVM -eq 1 ]; then
+		#create vg
+		pvcreate $LVM_PART_DRIVE
+		VG_NAME="vgsparky" #dont use "-" in the name
+		vgcreate $VG_NAME $LVM_PART_DRIVE 
+		VGSIZE=$(vgs -o vg_size --units b $VG_NAME | sed 1D | awk '{ print substr($1,1,length($1)-1) }')
+		#create lvs
+		(( SWAPSIZE=1*G ))
+		(( VGSIZE==$VGSIZE-$SWAPSIZE ))
+		case $PARTSCHEMA in
+			"3") #lvm aio
+				LVS_TO_CREATE="swap:1G:none:swap:sw:0 0|root::/:ext4:errors=remount-ro,defaults:0 1"
+				;;
+			"4") #lvm separate home
+				calc_root_size $VGSIZE
+				(( ROOT_PART_SIZE=$ROOT_PART_SIZE/G ))
+				LVS_TO_CREATE="swap:1G:none:swap:sw:0 0|root:$ROOT_PART_SIZE""G:/:ext4:errors=remount-ro,defaults:0 1|home::/home:ext4:defaults:0 2"
+				;;
+		esac
+		NF=$(echo $LVS_TO_CREATE | awk -F"|" '{print NF}')
+		for i in `seq $NF`; do
+			CMD=$(echo $LVS_TO_CREATE | cut -d "|" -f $i)
+			PART=$(echo $CMD | cut -d: -f1)
+			SIZE=$(echo $CMD | cut -d: -f2)
+			MOUNTPOINT=$(echo $CMD | cut -d: -f3)
+			FSTYPE=$(echo $CMD | cut -d: -f4)
+			FSTABOPT=$(echo $CMD | cut -d: -f5)
+			DUMP_PASS=$(echo $CMD | cut -d: -f6)
+			if [ "$SIZE" != "" ]; then
+				lvcreate -L $SIZE -n $PART $VG_NAME
+			else
+				lvcreate -l +100%FREE -n $PART $VG_NAME
+			fi
+			PART_TO_MOUNT=$(lsblk -l -p -b | egrep "$VG_NAME.*$PART" | awk '{print $1}')
+			
+			PARTS_TO_MOUNT="$PARTS_TO_MOUNT|$PART_TO_MOUNT:$MOUNTPOINT:$FSTYPE:$FSTABOPT:$DUMP_PASS"
+		done
+	fi
+}
+
+partitioner() {
+	drive_to_part
+
+	if [ "$PARTDRIVE" = "Exit" ]; then
+		exit 1
+	fi
+
+	partschemamenu="1 AIO 2 /home 3 LVM_AIO 4 LVM_/home"
+	dialog --title "Tytul" --menu "Select partitioning schema" 40 72 12 Manual "Manual partitioning" $partschemamenu 2>$CHOICE_FILE
+	if [ "$?" = "0" ]; then
+		PARTSCHEMA=`cat $CHOICE_FILE`
+	else
+		PARTSCHEMA="Exit"
+	fi
+		
+	if [ "$PARTSCHEMA" == "Exit" ]; then
+		exit 1
+	fi
+	if [ "$PARTSCHEMA" == "Manual" ]; then
+		#manual partitioning
+		$PARTITIONPROG $PARTDRIVE
+
+		EXCLUDED_PARTS="loop|sr0|disk"
+		
+		if [ "$TESTEFI" != "" ]; then
+			MANDATORY_PARTS="efi"
+		else
+			MANDATORY_PARTS=""
+		fi
+		
+		MANDATORY_PARTS="$MANDATORY_PARTS root swap home"
+
+		select_mount_points
+	else
+		automatic_partitioning
+	fi
+	PARTS_TO_MOUNT=$(echo $PARTS_TO_MOUNT | tr "|" "\n" | sort -t ":" -k 2,2 | tr "\n" "|")
+	PARTS_TO_MOUNT=${PARTS_TO_MOUNT%?}
+}
+
+mount_partitions() {
+	# create commands to mount and make filesystems
+	FSTAB=""
+	NF=$(echo $PARTS_TO_MOUNT | awk -F"|" '{print NF}')
+	
+	mkdir -p /TARGET
+
+	for i in `seq $NF`; do
+		CMD=$(echo $PARTS_TO_MOUNT | cut -d "|" -f $i)
+		PART=$(echo $CMD | cut -d: -f1)
+		MOUNT=$(echo $CMD | cut -d: -f2)
+		FS=$(echo $CMD | cut -d: -f3)
+		FSTABOPT=$(echo $CMD | cut -d: -f4)
+		DUMP_PASS=$(echo $CMD | cut -d: -f5)
+		if [ "$FS" == "swap" ]; then
+			if [ "`mount | grep $PART`" ]; then
+				swapon $PART
+			else
+				mkswap $PART
+				swapon $PART
+			fi
+			UUIDSWAP=$(blkid -o value -s UUID $PART)
+		else
+			if [ "`mount | grep $PART`" ]; then
+				umount $PART
+			fi
+			if [ "$FS" != "noformat" ]; then
+				mke2fs -t $FS -F $PART
+				sleep 2
+			else
+				FS=$(blkid -o value -s TYPE $PART)
+			fi
+			echo $MOUNT
+			mkdir -p /TARGET/$MOUNT
+			mount $PART /TARGET/$MOUNT -o rw
+			sleep 2
+			tune2fs -c 0 -i -0 $PART
+		fi
+		UUID=$(blkid -o value -s UUID $PART)
+		if [ "$FSTAB" == "" ];then
+			FSTAB="$PART:$UUID:$MOUNT:$FS:$FSTABOPT:$DUMP_PASS"
+		else
+			FSTAB="$FSTAB|$PART:$UUID:$MOUNT:$FS:$FSTABOPT:$DUMP_PASS"
+		fi
+	done
+}
+
+generate_fstab() {
+	FSTAB_FILE="$1"
+
+	echo "# /etc/fstab: static file system information." > $FSTAB_FILE
+	echo "#" >> $FSTAB_FILE
+	echo "# <file system> <mount point>   <type>  <options>       <dump>  <pass>" >> $FSTAB_FILE
+	echo "" >> $FSTAB_FILE
+
+	NF=$(echo $FSTAB | awk -F"|" '{print NF}')
+	for i in `seq $NF`; do
+		CMD=$(echo $FSTAB | cut -d "|" -f $i)
+		PART=$(echo $CMD | cut -d: -f1)
+		UUID=$(echo $CMD | cut -d: -f2)
+		MOUNT=$(echo $CMD | cut -d: -f3)
+		FS=$(echo $CMD | cut -d: -f4)
+		FSTABOPT=$(echo $CMD | cut -d: -f5)
+		DUMP_PASS=$(echo $CMD | cut -d: -f6)
+		echo "# $PART" >> $CHOICE_FILE
+		echo "UUID=$UUID	$MOUNT	$FS	$FSTABOPT	$DUMP_PASS" >> $FSTAB_FILE
+	done
+	echo "# cdrom"
+	echo "$TARGETCDROM    /media/cdrom0   udf,iso9660     user,noauto,exec,utf8   0       0" >> $FSTAB_FILE
+}
 
 if [ "$GUI" = "" ]; then
 GUILOG="cli"

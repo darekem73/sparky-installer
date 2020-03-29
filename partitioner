@@ -443,6 +443,7 @@ mount_partitions() {
 				mkswap $PART
 				swapon $PART
 			fi
+			UUIDSWAP=$(blkid -o value -s UUID $PART)
 		else
 			if [ "`mount | grep $PART`" ]; then
 				umount $PART
