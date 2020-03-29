@@ -383,6 +383,7 @@ gather_part_data() {
 			fi
 			FSTABOPT="defaults"
 			DUMP_PASS="0	2"
+			HFSTYPE=$FSTYPE #needed below for rsync
 			;;
 		"other")
 			MOUNTPOINT=""
@@ -665,7 +666,8 @@ mount_partitions() {
 				umount $PART
 			fi
 			if [ "$FS" != "noformat" ]; then
-				mke2fs -t $FS -F $PART
+				#mke2fs -t $FS -F $PART
+				mkfs -t $FS $PART
 				sleep 2
 			else
 				FS=$(blkid -o value -s TYPE $PART)
@@ -869,7 +871,7 @@ GrubSelectText () {
 		fi
 	done
 
-	GrubMenu=( "${GrubMenu[@]}" "root" "$LOCAL68" "rootmbr" "$LOCAL69" "nogrub" "$LOCAL70")
+	GrubMenu=( "${GrubMenu[@]}" "root" "$LOCAL68" "rootmbr" "$LOCAL69" "nogrub" "$LOCAL70" )
 
 	#grub location
 	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL71\n" $HEIGHT $WIDTH $MENUHEIGHT "${GrubMenu[@]}" 2>/tmp/choice.$$
@@ -1403,6 +1405,10 @@ TARGETEFI=$TARGETEFI
 FORMATEFIPART=$FORMATEFIPART
 HFSTYPE=$HFSTYPE
 GRUBLOC=$GRUBLOC
+
+PARTS_TO_CCREATE=$PARTS_TO_CREATE
+LVS_TO_CREATE=$LVS_TO_CREATE
+PARTS_TO_MOUNT=$PARTS_TO_MOUNT
 FOO
 
 echo "==============================================================" >> /var/log/sparkylinux-installer.log
