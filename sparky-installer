@@ -518,6 +518,9 @@ automatic_partitioning() {
 	esac
 
 	#create partitions $PARTS_TO_CREATE
+	#TODO: Make separate function of create partitions
+	#TODO: $PARTS_TO_CREATE as parameter?
+
 	echo $PARTS_TO_CREATE
 
 	if [ "$TESTEFI" != "" ]; then
@@ -555,10 +558,17 @@ automatic_partitioning() {
 	fi
 	echo "w" >> $CHOICE_FILE
 
-	#cat $CHOICE_FILE
 	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
 	rm $CHOICE_FILE
 	
+	#TODO: $PARTS_TO_ENCRYPT CRYPT=1
+	#TODO: set LVM_PART_DRIVE if necessary
+	#TODO: start creating crypttab
+	#TODO: new generate_crypttab function
+	#TODO: seaprate function to collect any password
+	#echo $PASS | cryptsetup luksFormat -q -d - $PART_TO_ENCRYPT
+	#echo $pass | sudo cryptsetup luksOpen /dev/sdc1 sdc1  -d - $PART_TO_ENCRYPT?MOUNT?
+
 	if [ $LVM -eq 1 ]; then
 		#create vg
 		pvcreate $LVM_PART_DRIVE
@@ -1507,9 +1517,11 @@ fi
 if [ -f /TARGET/etc/initramfs-tools/conf.d/resume ]; then
 	rm -f /TARGET/etc/initramfs-tools/conf.d/resume
 fi
+if [ "$UUIDSWAP" != "" ]; then
 cat > /TARGET/etc/initramfs-tools/conf.d/resume <<FOO
 RESUME=UUID=$UUIDSWAP
 FOO
+fi
 
 echo "UUIDs & FSTAB" >> /var/log/sparkylinux-installer.log
 echo "==============================================================" >> /var/log/sparkylinux-installer.log
