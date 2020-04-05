@@ -762,12 +762,12 @@ automatic_partitioning() {
 			PART=$(echo $CMD | cut -d: -f1)
 			PASS=$(echo $CMD | cut -d: -f2)
 			MAPPED=$(echo $CMD | cut -d: -f3)
-			UUID=$(blkid -o value -s UUID $PART)
 			# TODO: close open crypt volumes
 			echo $PASS | cryptsetup luksFormat --type luks2 -l ${#PASS} -q -d - $PART
 			sleep 2
 			echo $PASS | cryptsetup luksOpen $PART $MAPPED -l ${#PASS} -d -
 			sleep 2
+			UUID=$(blkid -o value -s UUID $PART)
 			if [ "$CRYPTTAB" = "" ]; then
 				CRYPTTAB="$MAPPED:$UUID:none	luks,discard" 
 			else
