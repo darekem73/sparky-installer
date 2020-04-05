@@ -24,6 +24,16 @@ if [ -f /tmp/sparky-advanced-installer ]; then
 	rm -f /tmp/sparky-advanced-installer
 fi
 
+#set some constants for autopartitioner
+(( K=1024 ))
+(( M=$K*$K ))
+(( G=$K*$K*$K ))
+(( DEFAULT_SWAP_SIZE=1*$G ))
+DEFAULT_SWAP_SIZE_G="1"
+MIN_PART_SIZE=5 # G
+MAX_PART_SIZE=30 # G
+ROOT_PART_RATIO=3 # of target partition
+
 # set options depending on mode - text or gui
 DIALOG="`which dialog`"
 HEIGHT="20"
@@ -249,6 +259,38 @@ fi
 . /etc/sparkybackup/sparkybackup.conf
 . /etc/sparkybackup/sparkylinux-installer.conf
 
+get_password() {
+	PASS_TYPE=$1
+	tmpPASS1="1"
+	tmpPASS2="2"
+	
+	while [ "$tmpPASS1" != "$tmpPASS2" ]; do
+	
+		$DIALOG $TITLE"$TITLETEXT" $PASSWORD $TEXT"Enter $PASS_TYPE password" $HEIGHT $WIDTH 2>$CHOICE_FILE
+		if [ "$?" = "0" ]; then
+			tmpPASS1=`cat $CHOICE_FILE`
+		else
+			exit 1
+		fi
+	
+		rm $CHOICE_FILE
+		$DIALOG $TITLE"$TITLETEXT" $PASSWORD $TEXT"Re-enter $PASS_TYPE password" $HEIGHT $WIDTH 2>$CHOICE_FILE
+		if [ "$?" = "0" ]; then
+			tmpPASS2=`cat $CHOICE_FILE`
+		else
+			exit 1
+		fi
+	
+		rm $CHOICE_FILE
+	
+		if [ "$tmpPASS1" != "$tmpPASS2" ]; then
+			$DIALOG $TITLE"$TITLETEXT" $MSGBOX $TEXT"$LOCAL41" $HEIGHT $WIDTH
+		fi
+	done
+	PASSWORD=$tmpPASS1
+	rm $CHOICE_FILE
+}
+
 drive_to_part() {
 	DRIVES=`lsblk -l -p | grep 'disk' | awk '{print $1}'`
 	partdrivemenu=""
@@ -258,7 +300,7 @@ drive_to_part() {
 		partdrivemenu="$partdrivemenu $partdrive $partdrivesize"
 	done
 	
-	dialog --title "Tytul" --menu "Select drive to partition" 40 72 12 Exit "Wyjscie" $partdrivemenu 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive to partition" $HEIGHT $WIDTH $MENUHEIGHT Exit "Wyjscie" $partdrivemenu 2>$CHOICE_FILE
 	
 	if [ "$?" == "0" ]; then
 		PARTDRIVE=`cat $CHOICE_FILE`
@@ -281,7 +323,7 @@ ask_for_part() {
 		partmenu="$partmenu $part $partsize"
 	done
 	
-	dialog --title "Tytul" --menu "Select partition for $TYPE" 40 72 12 Exit "Wyjscie" $partmenu 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select partition for $TYPE" $HEIGHT $WIDTH $MENUHEIGHT Exit "Wyjscie" $partmenu 2>$CHOICE_FILE
 	
 	if [ "$?" = "0" ]; then
 		PARTTOMOUNT=`cat $CHOICE_FILE`
@@ -296,7 +338,7 @@ ask_for_part() {
 ask_for_mountpoint() {
 	LOCATION="$1"
 
-	dialog --title "Tytul" --inputbox "Mountpoint for $LOCATION" 40 72 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" --inputbox "Mountpoint for $LOCATION" $HEIGHT $WIDTH 2>$CHOICE_FILE
 	if [ "$?" = "0" ]; then
                 MOUNTPOINT=`cat $CHOICE_FILE`
         else
@@ -314,7 +356,7 @@ ask_for_filesystem() {
 	else
 		NOFORMAT=""
 	fi
-	dialog --title "Tytul" --menu "Select filesystem for $LOCATION" 40 72 12 $NOFORMAT ext4 "ext4" ext3 "ext3" ext2 "ext2" 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select filesystem for $LOCATION" $HEIGHT $WIDTH $MENUHEIGHT $NOFORMAT ext4 "ext4" ext3 "ext3" ext2 "ext2" 2>$CHOICE_FILE
 	
 	if [ "$?" = "0" ]; then
 		FSTYPE=`cat $CHOICE_FILE`
@@ -447,81 +489,30 @@ select_mount_points() {
 	done
 }
 
-
 calc_root_size() {
-	target_size=$1
-	status=0
-	ROOT_PART_SIZE=$(awk -v K=1024 -v disksize=$target_size 'BEGIN { M=K^2; G=K^3; size=0; if (disksize > 5*G) { size = int(disksize/3/G)*G; if (size > 30*G) size=30*G}; print size }')
-	if [ $ROOT_PART_SIZE -eq 0 ]; then
-		status=1
+	if [ $1 -gt $(( $MAX_PART_SIZE*$G )) ]; then
+		(( ROOT_PART_SIZE=$MAX_PART_SIZE*$G ))
+	elif [ $1 -gt $(( $MIN_PART_SIZE*$G )) ]; then
+		(( ROOT_PART_SIZE=$1/$ROOT_PART_RATIO ))
 	fi
+	[ $ROOT_PART_SIZE -eq 0 ] && return 1
+	return 0
+	# target_size=$1
+	# status=0
+	# ROOT_PART_SIZE=$(awk -v K=1024 -v disksize=$target_size 'BEGIN { M=K^2; G=K^3; size=0; if (disksize > 5*G) { size = int(disksize/3/G)*G; if (size > 30*G) size=30*G}; print size }')
+	# if [ $ROOT_PART_SIZE -eq 0 ]; then
+	# 	status=1
+	# fi
 
-	return $status
+	# return $status
 }
 
-automatic_partitioning() {
-	K=1024
-	(( M=$K*$K ))
-	(( G=$K*$K*$K ))
-	if [ "$TESTEFI" != "" ]; then
-		(( EFIPARTSIZE=500*M ))
-		(( PARTDRIVESIZE=$PARTDRIVESIZE-$EFIPARTSIZE ))
+create_partitions() {
+	# $PARTS_TO_CREATE must be set
+	if [ "$PARTS_TO_CREATE" == "" ]; then
+		echo "PARTS_TO_CREATE must be set"
+		exit 1
 	fi
-	case $PARTSCHEMA in
-		"1") #aio
-			LVM=0
-			(( SWAPPARTSIZE=1*G ))
-			(( PARTDRIVESIZE=$PARTDRIVESIZE-$SWAPPARTSIZE ))
-			ROOT_PART_SIZE=$PARTDRIVESIZE
-			if [ "$TESTEFI" != "" ]; then
-				PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$ROOT_PART_SIZE|3:19: "
-				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""3:none:swap:sw:0 0"
-			else
-				PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE|2:19: "
-				PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""2:none:swapi:sw:0 0"
-				#part1 bootable
-			fi
-			;;
-		"2") #separate home
-			LVM=0
-			(( SWAPPARTSIZE=1*G ))
-			(( PARTDRIVESIZE=$PARTDRIVESIZE-$SWAPPARTSIZE ))
-			calc_root_size $PARTDRIVESIZE
-			if [ $ROOT_PART_SIZE -eq 0 ]; then
-				exit 1
-			fi
-			(( PARTDRIVESIZE=$PARTDRIVESIZE-$ROOT_PART_SIZE ))
-			if [ "$TESTEFI" != "" ]; then
-				PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$ROOT_PART_SIZE|3:19:$SWAPPARTSIZE|4:20: "
-				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""3:none:swap:sw:0 0|$PARTDRIVE""4:/home:ext4:defaults:0 2"
-			else
-				PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE|2:19:$SWAPPARTSIZE|3:20: "
-				PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""2:none:swap:sw:0 0|$PARTDRIVE""3:/home:ext4:defaults:0 2"
-				#part1 bootable
-			fi
-			;;
-		"3"|"4") #lvm aio #lvm separate home
-			LVM=1
-			(( BOOTPARTSIZE=500*M ))
-			(( PARTDRIVESIZE=$PARTDRIVESIZE-$BOOTPARTSIZE ))
-			if [ "$TESTEFI" != "" ]; then
-				PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20: "
-				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 2"
-				LVM_PART_DRIVE="$PARTDRIVE""3"
-			else
-				PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20: "
-				PARTS_TO_MOUNT="$PARTDRIVE""1:/boot:ext4:defaults:0 2"
-				LVM_PART_DRIVE="$PARTDRIVE""2"
-				#part1 bootable
-			fi
-			;;
-	esac
-
-	#create partitions $PARTS_TO_CREATE
-	#TODO: Make separate function of create partitions
-	#TODO: $PARTS_TO_CREATE as parameter?
-
-	echo $PARTS_TO_CREATE
 
 	if [ "$TESTEFI" != "" ]; then
 		echo "g" > $CHOICE_FILE
@@ -558,18 +549,216 @@ automatic_partitioning() {
 	fi
 	echo "w" >> $CHOICE_FILE
 
+	#autopartition device
 	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
 	rm $CHOICE_FILE
+}
+
+automatic_partitioning() {
+	case $PARTSCHEMA in
+		"1"|"2"|"3"|"4") # no encryption
+			CRYPT=0
+			if [ "$TESTEFI" != "" ]; then
+				(( EFIPARTSIZE=500*M ))
+				(( PARTDRIVESIZE=$PARTDRIVESIZE-$EFIPARTSIZE ))
+			fi
+			case $PARTSCHEMA in
+				"1") #aio
+					LVM=0
+					(( SWAPPARTSIZE=1*G ))
+					(( PARTDRIVESIZE=$PARTDRIVESIZE-$SWAPPARTSIZE ))
+					ROOT_PART_SIZE=$PARTDRIVESIZE
+					if [ "$TESTEFI" != "" ]; then
+						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$ROOT_PART_SIZE|3:19: "
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""3:none:swap:sw:0 0"
+					else
+						PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE|2:19: "
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""2:none:swap:sw:0 0"
+						#part1 bootable
+					fi
+					;;
+				"2") #separate home
+					LVM=0
+					(( SWAPPARTSIZE=1*G ))
+					(( PARTDRIVESIZE=$PARTDRIVESIZE-$SWAPPARTSIZE ))
+					calc_root_size $PARTDRIVESIZE
+					if [ $ROOT_PART_SIZE -eq 0 ]; then
+						exit 1
+					fi
+					(( PARTDRIVESIZE=$PARTDRIVESIZE-$ROOT_PART_SIZE ))
+					if [ "$TESTEFI" != "" ]; then
+						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$ROOT_PART_SIZE|3:19:$SWAPPARTSIZE|4:20: "
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""3:none:swap:sw:0 0|$PARTDRIVE""4:/home:ext4:defaults:0 2"
+					else
+						PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE|2:19:$SWAPPARTSIZE|3:20: "
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""2:none:swap:sw:0 0|$PARTDRIVE""3:/home:ext4:defaults:0 2"
+						#part1 bootable
+					fi
+					;;
+				"3"|"4") #lvm aio #lvm separate home
+					LVM=1
+					(( BOOTPARTSIZE=500*M ))
+					(( PARTDRIVESIZE=$PARTDRIVESIZE-$BOOTPARTSIZE ))
+					if [ "$TESTEFI" != "" ]; then
+						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20: "
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 2"
+						LVM_PART_DRIVE="$PARTDRIVE""3"
+					else
+						PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20: "
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot:ext4:defaults:0 2"
+						LVM_PART_DRIVE="$PARTDRIVE""2"
+						#part1 bootable
+					fi
+					;;
+			esac
+			;;
+		"5"|"6"|"7"|"8") # with encryption
+			CRYPT=1
+			if [ "$TESTEFI" != "" ]; then
+				(( EFIPARTSIZE=500*M ))
+				(( PARTDRIVESIZE=$PARTDRIVESIZE-$EFIPARTSIZE ))
+			fi
+			(( BOOTPARTSIZE=500*M ))
+			(( PARTDRIVESIZE=$PARTDRIVESIZE-$BOOTPARTSIZE ))
+			case $PARTSCHEMA in
+				"5") #aio + encryption and no swap
+					LVM=0
+					if [ "$TESTEFI" != "" ]; then
+						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20: "
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""3"
+						get_password "$DRIVE_TO_ENCRYPT"
+						DRIVE_TO_ENCRYPT_PASS=$PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 2|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+					else
+						PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20: "
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""2"
+						get_password "$DRIVE_TO_ENCRYPT"
+						DRIVE_TO_ENCRYPT_PASS=$PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot:ext4:defaults:0 2|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+						#part1 bootable
+					fi
+					;;
+				"6") # separate home + encryption and no swap
+					LVM=0
+					calc_root_size $PARTDRIVESIZE
+					if [ $ROOT_PART_SIZE -eq 0 ]; then
+						exit 1
+					fi
+					(( PARTDRIVESIZE=$PARTDRIVESIZE-$ROOT_PART_SIZE ))
+
+					if [ "$TESTEFI" != "" ]; then
+						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20:$ROOT_PART_SIZE|4:20: "
+
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""3"
+						get_password "$DRIVE_TO_ENCRYPT"
+						DRIVE_TO_ENCRYPT_PASS=$PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 2|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""4"
+						get_password "$DRIVE_TO_ENCRYPT"
+						DRIVE_TO_ENCRYPT_PASS=$PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVES_TO_ENCRYPT_TEXT_ONLY|$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTS_TO_MOUNT|/dev/mapper/$CRYPT_DRIVE_MAPPED:/home:ext4:defaults:0 2"
+					else
+						PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20:$ROOT_PART_SIZE|3:20: "
+
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""2"
+						get_password "$DRIVE_TO_ENCRYPT"
+						DRIVE_TO_ENCRYPT_PASS=$PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot:ext4:defaults:0 2|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""3"
+						get_password "$DRIVE_TO_ENCRYPT"
+						DRIVE_TO_ENCRYPT_PASS=$PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVES_TO_ENCRYPT_TEXT_ONLY|$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTS_TO_MOUNT|/dev/mapper/$CRYPT_DRIVE_MAPPED:/home:ext4:defaults:0 2"
+						#part1 bootable
+					fi
+					;;
+				"7"|"8") # lvm aio #lvm separate home
+					LVM=1
+					if [ "$TESTEFI" != "" ]; then
+						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20: "
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""3"
+						get_password "$DRIVE_TO_ENCRYPT"
+						DRIVE_TO_ENCRYPT_PASS=$PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 2"
+						LVM_PART_DRIVE="/dev/mapper/$CRYPT_DRIVE_MAPPED"
+					else
+						PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20: "
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""2"
+						get_password "$DRIVE_TO_ENCRYPT"
+						DRIVE_TO_ENCRYPT_PASS=$PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot:ext4:defaults:0 2"
+						LVM_PART_DRIVE="/dev/mapper/$CRYPT_DRIVE_MAPPED"
+						#part1 bootable
+					fi
+					;;
+			esac
+			;;
+	esac
+
+	$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Create partitions?\n$PARTS_TO_CREATE\non $PART_DRIVE" $HEIGHT $WIDTH
+	if [ $? != 0 ]; then
+		exit 1
+	fi
+	create_partitions
 	
-	#TODO: $PARTS_TO_ENCRYPT CRYPT=1
-	#TODO: set LVM_PART_DRIVE if necessary
-	#TODO: start creating crypttab
-	#TODO: new generate_crypttab function
-	#TODO: seaprate function to collect any password
-	#echo $PASS | cryptsetup luksFormat -q -d - $PART_TO_ENCRYPT
-	#echo $pass | sudo cryptsetup luksOpen /dev/sdc1 sdc1  -d - $PART_TO_ENCRYPT?MOUNT?
+	# encrypt and mount drive(s)
+	if [ $CRYPT -eq 1 ]; then
+		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt $DRIVES_TO_ENCRYPT_TEXT_ONLY?" $HEIGHT $WIDTH
+		if [ $? != 0 ]; then
+			exit 1
+		fi
+		NF=$(echo $DRIVES_TO_ENCRYPT | awk -F"|" '{print NF}')
+		for i in `seq $NF`; do
+			CMD=$(echo $DRIVES_TO_ENCRYPT | cut -d "|" -f $i)
+			PART=$(echo $CMD | cut -d: -f1)
+			PASS=$(echo $CMD | cut -d: -f2)
+			MAPPED=$(echo $CMD | cut -d: -f3)
+			UUID=$(blkid -o value -s UUID $PART)
+			echo $PASS | cryptsetup luksFormat -q -d - $PART
+			sleep 2
+			echo $PASS | sudo cryptsetup luksOpen $PART $MAPPED  -d -
+			sleep 2
+			if [ $CRYPTTAB = "" ]; then
+				CRYPTTAB="$CRYPT_DRIVE_MAPPED:$UUID:none	luks,discard" 
+			else
+				CRYPTTAB="$CRYPTTAB|$CRYPT_DRIVE_MAPPED:$UUID:none	luks,discard,initramfs" 
+			fi
+		done
+	fi
+	
+	# create LVM
+	# TODO: create function to delete any previous lvs,vgs,pvs to start from scratch
 
 	if [ $LVM -eq 1 ]; then
+		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Create LVM? on $LVM_PART_DRIVE" $HEIGHT $WIDTH
+		if [ $? != 0 ]; then
+			exit 1
+		fi
 		#create vg
 		pvcreate $LVM_PART_DRIVE
 		VG_NAME="vgsparky" #dont use "-" in the name
@@ -615,9 +804,23 @@ partitioner() {
 	if [ "$PARTDRIVE" = "Exit" ]; then
 		exit 1
 	fi
+	unset PART_SCHEMAS
+	declare -a PART_SCHEMAS
+	PART_SCHEMAS[1]="Home_on_root+swap"
+	PART_SCHEMAS[2]="Separate_home+swap"
+	PART_SCHEMAS[3]="LVM_home_on_root+swap"
+	PART_SCHEMAS[4]="LVM_separate_home+swap"
+	PART_SCHEMAS[5]="Encrypted_home_on_root_no_swap"
+	PART_SCHEMAS[6]="Encrypted_separate_home_no_swap"
+	PART_SCHEMAS[7]="Encrypted_LVM_home_on_root+swap"
+	PART_SCHEMAS[8]="Encrypted_LVM_separate_home+swap"
 
-	partschemamenu="1 AIO 2 /home 3 LVM_AIO 4 LVM_/home"
-	dialog --title "Tytul" --menu "Select partitioning schema" 40 72 12 Manual "Manual partitioning" $partschemamenu 2>$CHOICE_FILE
+	partschemamenu=""
+	for f in ${!PART_SCHEMAS[@]}; do
+		partschemamenu="$partschemamenu $f ${PART_SCHEMAS[$f]}"
+	done
+
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select partitioning schema" $HEIGHT $WIDTH $MENUHEIGHT Manual "Manual partitioning" $partschemamenu 2>$CHOICE_FILE
 	if [ "$?" = "0" ]; then
 		PARTSCHEMA=`cat $CHOICE_FILE`
 	else
@@ -682,7 +885,7 @@ mount_partitions() {
 			else
 				FS=$(blkid -o value -s TYPE $PART)
 			fi
-			echo $MOUNT
+			#echo $MOUNT
 			mkdir -p /TARGET/$MOUNT
 			mount $PART /TARGET/$MOUNT -o rw
 			sleep 2
@@ -697,7 +900,36 @@ mount_partitions() {
 	done
 }
 
+generate_crypttab() {
+	# $CRYPTTAB must be set
+	CRYPTTAB_FILE="$1"
+
+	echo "# /etc/crypttab: mappings for encrypted partitions." > $CRYPTTAB_FILE
+	echo "#" >> $CRYPTTAB_FILE
+	echo "# Each mapped device will be created in /dev/mapper, so your /etc/fstab" >> $CRYPTTAB_FILE
+	echo "# should use the /dev/mapper/<name> paths for encrypted devices." >> $CRYPTTAB_FILE
+	echo "#" >> $CRYPTTAB_FILE
+	echo "# See crypttab(5) for the supported syntax." >> $CRYPTTAB_FILE
+	echo "#" >> $CRYPTTAB_FILE
+	echo "# NOTE: Do not list your root (/) partition here, it must be set up" >> $CRYPTTAB_FILE
+	echo "#       beforehand by the initramfs (/etc/mkinitcpio.conf). The same applies" >> $CRYPTTAB_FILE
+	echo "#       to encrypted swap, which should be set up with mkinitcpio-openswap" >> $CRYPTTAB_FILE
+	echo "#       for resume support." >> $CRYPTTAB_FILE
+	echo "#" >> $CRYPTTAB_FILE
+	echo "# <name>               <device>                         <password> <options>" >> $CRYPTTAB_FILE
+
+	NF=$(echo $CRYPTTAB | awk -F"|" '{print NF}')
+	for i in `seq $NF`; do
+		CMD=$(echo $CRYPTTAB | cut -d "|" -f $i)
+		MAPPED=$(echo $CMD | cut -d: -f1)
+		UUID=$(echo $CMD | cut -d: -f2)
+		OPTIONS=$(echo $CMD | cut -d: -f3)
+		echo "$MAPPED	UUID=$UUID	$OPTIONS" >> $CRYPTTAB_FILE
+	done
+}
+
 generate_fstab() {
+	# $FSTAB must be set
 	FSTAB_FILE="$1"
 
 	echo "# /etc/fstab: static file system information." > $FSTAB_FILE
@@ -751,36 +983,9 @@ GUILOG="cli"
 
 	if [ "$testmode" = "" ]; then
 
-		#root password entry section
-		TARGETROOTPASS="1"
-		TARGETROOTPASS2="2"
-
-		while [ "$TARGETROOTPASS" != "$TARGETROOTPASS2" ]; do
-
-			$DIALOG $TITLE"$TITLETEXT" $PASSWORD $TEXT"$LOCAL39" $HEIGHT $WIDTH 2>/tmp/choice.$$
-			if [ "$?" = "0" ]; then
-				TARGETROOTPASS=`cat /tmp/choice.$$`
-			else
-				exit 1
-			fi
-
-			rm /tmp/choice.$$
-			$DIALOG $TITLE"$TITLETEXT" $PASSWORD $TEXT"$LOCAL40" $HEIGHT $WIDTH 2>/tmp/choice.$$
-			if [ "$?" = "0" ]; then
-				TARGETROOTPASS2=`cat /tmp/choice.$$`
-			else
-				exit 1
-			fi
-
-			rm /tmp/choice.$$
-
-			if [ "$TARGETROOTPASS" != "$TARGETROOTPASS2" ]; then
-				$DIALOG $TITLE"$TITLETEXT" $MSGBOX $TEXT"$LOCAL41" $HEIGHT $WIDTH
-			fi
-
-		done
-
-		rm /tmp/choice.$$
+		# root password entry selection
+		get_password "root"	
+		TARGETROOTPASS=$PASSWORD
 
 		# do not set a regular user on server edition; text mode only
 		if [ "$CHECKSERVER" = "" ]; then
@@ -808,37 +1013,8 @@ GUILOG="cli"
 			TARGETUSER="`echo $TARGETUSER | awk '{print tolower ($0)}'`"
 
 			#password entry section
-
-			TARGETPASS="1"
-			TARGETPASS2="2"
-
-			while [ "$TARGETPASS" != "$TARGETPASS2" ]; do
-
-				$DIALOG $TITLE"$TITLETEXT" $PASSWORD $TEXT"$LOCAL45 $TARGETUSER." $HEIGHT $WIDTH 2>/tmp/choice.$$
-				if [ "$?" = "0" ]; then
-					TARGETPASS=`cat /tmp/choice.$$`
-				else
-					exit 1
-				fi
-
-				rm /tmp/choice.$$
-
-				$DIALOG $TITLE"$TITLETEXT" $PASSWORD $TEXT"$LOCAL45 $TARGETUSER $LOCAL46" $HEIGHT $WIDTH 2>/tmp/choice.$$
-				if [ "$?" = "0" ]; then
-					TARGETPASS2=`cat /tmp/choice.$$`
-				else
-					exit 1
-				fi
-
-				rm /tmp/choice.$$
-
-				if [ "$TARGETPASS" != "$TARGETPASS2" ]; then
-					$DIALOG $TITLE"$TITLETEXT" $MSGBOX $TEXT"$LOCAL47" $HEIGHT $WIDTH
-				fi
-
-			done
-
-			rm /tmp/choice.$$
+			get_password $TARGETUSER
+			TARGETPASS=$PASSWORD
 
 		fi
 
@@ -1507,6 +1683,11 @@ FOO
 	fi
 fi
 
+# generate crypttab if encrypted volumes
+if [ $CRYPT -eq 1 ]; then
+	generate_crypttab "/TARGET/etc/crypttab"
+fi
+
 #create a new fstab by uuid
 generate_fstab "/TARGET/etc/fstab"
 
@@ -1928,7 +2109,8 @@ fi
 
 $DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"$LOCAL113\n$PASTEGRUB\n$LOCAL114\n$PASTESERVER\n$LOCAL116" $HEIGHT $WIDTH
 if [ $? != 0 ]; then
-	echo "You are chrooted. Remember to umount -R /TARGET before reboot"
+	echo "If you created and encrypted your own partitions chroot to /TARGET and fill in /etc/crypttab and verify /etc/fstab."
+	echo "Remember to umount -R /TARGET before rebooting"
 	exit 0
 else
 	umount -R /TARGET
