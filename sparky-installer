@@ -647,7 +647,7 @@ automatic_partitioning() {
 					if [ "$TESTEFI" != "" ]; then
 						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20: "
 						DRIVE_TO_ENCRYPT="$PARTDRIVE""3"
-						get_password "$DRIVE_TO_ENCRYPT"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
 						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
 						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
@@ -656,7 +656,7 @@ automatic_partitioning() {
 					else
 						PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20: "
 						DRIVE_TO_ENCRYPT="$PARTDRIVE""2"
-						get_password "$DRIVE_TO_ENCRYPT"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
 						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
 						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
@@ -677,7 +677,7 @@ automatic_partitioning() {
 						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20:$ROOT_PART_SIZE|4:20: "
 
 						DRIVE_TO_ENCRYPT="$PARTDRIVE""3"
-						get_password "$DRIVE_TO_ENCRYPT"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
 						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
 						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
@@ -685,7 +685,7 @@ automatic_partitioning() {
 						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 2|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
 
 						DRIVE_TO_ENCRYPT="$PARTDRIVE""4"
-						get_password "$DRIVE_TO_ENCRYPT"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
 						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
 						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVES_TO_ENCRYPT_TEXT_ONLY|$DRIVE_TO_ENCRYPT"
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
@@ -695,7 +695,7 @@ automatic_partitioning() {
 						PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20:$ROOT_PART_SIZE|3:20: "
 
 						DRIVE_TO_ENCRYPT="$PARTDRIVE""2"
-						get_password "$DRIVE_TO_ENCRYPT"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
 						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
 						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
@@ -703,7 +703,7 @@ automatic_partitioning() {
 						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot:ext4:defaults:0 2|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
 
 						DRIVE_TO_ENCRYPT="$PARTDRIVE""3"
-						get_password "$DRIVE_TO_ENCRYPT"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
 						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
 						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVES_TO_ENCRYPT_TEXT_ONLY|$DRIVE_TO_ENCRYPT"
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
@@ -717,7 +717,7 @@ automatic_partitioning() {
 					if [ "$TESTEFI" != "" ]; then
 						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20: "
 						DRIVE_TO_ENCRYPT="$PARTDRIVE""3"
-						get_password "$DRIVE_TO_ENCRYPT"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
 						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
 						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
@@ -727,7 +727,7 @@ automatic_partitioning() {
 					else
 						PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20: "
 						DRIVE_TO_ENCRYPT="$PARTDRIVE""2"
-						get_password "$DRIVE_TO_ENCRYPT"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
 						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
 						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
@@ -753,6 +753,7 @@ automatic_partitioning() {
 		if [ $? != 0 ]; then
 			exit 1
 		fi
+		CRYPTTAB=""
 		NF=$(echo $DRIVES_TO_ENCRYPT | awk -F"|" '{print NF}')
 		for i in `seq $NF`; do
 			CMD=$(echo $DRIVES_TO_ENCRYPT | cut -d "|" -f $i)
@@ -765,9 +766,9 @@ automatic_partitioning() {
 			echo $PASS | sudo cryptsetup luksOpen $PART $MAPPED  -d -
 			sleep 2
 			if [ $CRYPTTAB = "" ]; then
-				CRYPTTAB="$CRYPT_DRIVE_MAPPED:$UUID:none	luks,discard" 
+				CRYPTTAB="$MAPPED:$UUID:none	luks,discard" 
 			else
-				CRYPTTAB="$CRYPTTAB|$CRYPT_DRIVE_MAPPED:$UUID:none	luks,discard,initramfs" 
+				CRYPTTAB="$CRYPTTAB|$MAPPED:$UUID:none	luks,discard,initramfs" 
 			fi
 		done
 	fi
@@ -1007,7 +1008,7 @@ GUILOG="cli"
 	if [ "$testmode" = "" ]; then
 
 		# root password entry selection
-		get_password "root"	
+		get_password "root user"	
 		TARGETROOTPASS=$THE_PASSWORD
 
 		# do not set a regular user on server edition; text mode only
@@ -1036,7 +1037,7 @@ GUILOG="cli"
 			TARGETUSER="`echo $TARGETUSER | awk '{print tolower ($0)}'`"
 
 			#password entry section
-			get_password "$TARGETUSER"
+			get_password "user $TARGETUSER"
 			TARGETPASS=$THE_PASSWORD
 
 		fi
