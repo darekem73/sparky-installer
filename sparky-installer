@@ -796,10 +796,10 @@ automatic_partitioning() {
 		(( SWAPSIZE=1*G ))
 		(( VGSIZE==$VGSIZE-$SWAPSIZE ))
 		case $PARTSCHEMA in
-			"3") #lvm aio
+			"3"|"7") #lvm aio
 				LVS_TO_CREATE="swap:1G:none:swap:sw:0 0|root::/:ext4:errors=remount-ro,defaults:0 1"
 				;;
-			"4") #lvm separate home
+			"4"|"8") #lvm separate home
 				calc_root_size $VGSIZE
 				if [ $ROOT_PART_SIZE -eq 0 ]; then
 					exit 1
