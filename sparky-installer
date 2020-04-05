@@ -846,6 +846,7 @@ partitioner() {
 	PART_SCHEMAS[6]="Encrypted_separate_home_no_swap"
 	PART_SCHEMAS[7]="Encrypted_LVM_home_on_root+swap"
 	PART_SCHEMAS[8]="Encrypted_LVM_separate_home+swap"
+	PART_SCHEMAS[9]="Encrypted_LVM_two_PVs_separate_home_LV+swap;not_implemented+yet"
 
 	partschemamenu=""
 	for f in ${!PART_SCHEMAS[@]}; do
