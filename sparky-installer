@@ -748,7 +748,8 @@ automatic_partitioning() {
 		exit 1
 	fi
 	create_partitions
-	
+	exit #see output of partitioner
+
 	# encrypt and mount drive(s)
 	if [ $CRYPT -eq 1 ]; then
 		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt $DRIVES_TO_ENCRYPT_TEXT_ONLY?\nIt can take several seconds so don't panick!" $HEIGHT $WIDTH
