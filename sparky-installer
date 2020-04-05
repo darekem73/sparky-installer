@@ -783,7 +783,7 @@ automatic_partitioning() {
 	
 	# create LVM
 	if [ $LVM -eq 1 ]; then
-		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Create LVM? on $LVM_PART_DRIVE" $HEIGHT $WIDTH
+		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Create LVM on $LVM_PART_DRIVE?" $HEIGHT $WIDTH
 		if [ $? != 0 ]; then
 			exit 1
 		fi
@@ -801,6 +801,9 @@ automatic_partitioning() {
 				;;
 			"4") #lvm separate home
 				calc_root_size $VGSIZE
+				if [ $ROOT_PART_SIZE -eq 0 ]; then
+					exit 1
+				fi
 				(( ROOT_PART_SIZE=$ROOT_PART_SIZE/G ))
 				LVS_TO_CREATE="swap:1G:none:swap:sw:0 0|root:$ROOT_PART_SIZE""G:/:ext4:errors=remount-ro,defaults:0 1|home::/home:ext4:defaults:0 2"
 				;;
@@ -823,6 +826,7 @@ automatic_partitioning() {
 			
 			PARTS_TO_MOUNT="$PARTS_TO_MOUNT|$PART_TO_MOUNT:$MOUNTPOINT:$FSTYPE:$FSTABOPT:$DUMP_PASS"
 		done
+		exit
 	fi
 }
 
