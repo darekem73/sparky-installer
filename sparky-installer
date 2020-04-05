@@ -909,7 +909,7 @@ mount_partitions() {
 				umount $PART
 			fi
 			if [ "$FS" != "noformat" ]; then
-				#mke2fs -t $FS -F $PART
+				#yes|  ???
 				mkfs -t $FS $PART
 				sleep 2
 			else
