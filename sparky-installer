@@ -775,6 +775,7 @@ automatic_partitioning() {
 				CRYPTTAB="$CRYPTTAB|$MAPPED:$UUID:none	luks,discard,initramfs" 
 			fi
 		done
+		echo $PART
 		echo $DRIVES_TO_ENCRYPT
 		echo $CRYPTTAB
 		blkid
