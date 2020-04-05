@@ -9,6 +9,7 @@
 # for SparkyLinux by pavroo <pavroo@onet.eu> 2013/08/04
 # Copyright 2013-2020 Under the GNU GPL2 License
 # Last update 2020/03/09 by pavroo
+# Auto partitioning by darekem73 2020/04/06
 #
 # This script requires either yad or dialog to run
 
