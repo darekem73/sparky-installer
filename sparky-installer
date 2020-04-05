@@ -748,7 +748,6 @@ automatic_partitioning() {
 		exit 1
 	fi
 	create_partitions
-	exit #see output of partitioner
 
 	# encrypt and mount drive(s)
 	if [ $CRYPT -eq 1 ]; then
