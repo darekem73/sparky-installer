@@ -297,19 +297,21 @@ clear_lvm() {
 	LIST_OF_PVS=$(pvs | sed 1D | awk '{printf "%s ", $1}')
 	LIST_OF_LVS=$(lvs | sed 1D | awk '{printf "%s ", $1}')
 
-	$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Delete all\n$LIST_OF_VGS\n$LIST_OF_LVS\n$LIST_OF_PVS?" $HEIGHT $WIDTH
-	if [ $? != 0 ]; then
-		exit 1
-	fi
+	if [ "$LIST_OF_VGS" != "" ]; then
+		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Delete all\n$LIST_OF_VGS\n$LIST_OF_LVS\n$LIST_OF_PVS?" $HEIGHT $WIDTH
+		if [ $? != 0 ]; then
+			exit 1
+		fi
+		
+		for f in $LIST_OF_VGS; do
+			lvremove $f
+			vgremove $f
+		done
 	
-	for f in $LIST_OF_VGS; do
-		lvremove $f
-		vgremove $f
-	done
-
-	for f in $LIST_OF_PVS; do
-		pvremove $f
-	done
+		for f in $LIST_OF_PVS; do
+			pvremove $f
+		done
+	fi
 }
 
 drive_to_part() {
