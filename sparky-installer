@@ -765,7 +765,7 @@ automatic_partitioning() {
 			UUID=$(blkid -o value -s UUID $PART)
 			echo $PASS | cryptsetup luksFormat --type luks2 -q -d - $PART
 			sleep 2
-			echo $PASS | sudo cryptsetup luksOpen $PART $MAPPED  -d -
+			echo $PASS | cryptsetup luksOpen $PART $MAPPED  -d -
 			sleep 2
 			if [ $CRYPTTAB = "" ]; then
 				CRYPTTAB="$MAPPED:$UUID:none	luks,discard" 
@@ -773,6 +773,9 @@ automatic_partitioning() {
 				CRYPTTAB="$CRYPTTAB|$MAPPED:$UUID:none	luks,discard,initramfs" 
 			fi
 		done
+		echo $DRIVES_TO_ENCRYPT
+		echo $CRYPTTAB
+		exit
 	fi
 	
 	# create LVM
