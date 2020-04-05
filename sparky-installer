@@ -302,7 +302,8 @@ clear_lvm() {
 		if [ $? != 0 ]; then
 			exit 1
 		fi
-		
+
+		# yes| ?
 		for f in $LIST_OF_VGS; do
 			lvremove $f
 			vgremove $f
