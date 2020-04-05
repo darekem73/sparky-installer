@@ -270,7 +270,7 @@ get_password() {
 		if [ "$?" = "0" ]; then
 			tmpPASS1=`cat $CHOICE_FILE`
 		else
-			echo "Error exiting password dialog 1"
+			echo "Error exiting password dialog 1; $PASS_TYPE"
 			exit 1
 		fi
 	
@@ -279,7 +279,7 @@ get_password() {
 		if [ "$?" = "0" ]; then
 			tmpPASS2=`cat $CHOICE_FILE`
 		else
-			echo "Error exiting password dialog 2"
+			echo "Error exiting password dialog 2; $PASS_TYPE"
 			exit 1
 		fi
 	
