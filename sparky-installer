@@ -767,15 +767,15 @@ automatic_partitioning() {
 			sleep 2
 			echo $PASS | cryptsetup luksOpen $PART $MAPPED  -d -
 			sleep 2
-			if [ $CRYPTTAB = "" ]; then
+			if [[ "$CRYPTTAB" == "" ]]; then
 				CRYPTTAB="$MAPPED:$UUID:none	luks,discard" 
 			else
 				CRYPTTAB="$CRYPTTAB|$MAPPED:$UUID:none	luks,discard,initramfs" 
 			fi
 		done
-		echo $DRIVES_TO_ENCRYPT
-		echo $CRYPTTAB
-		exit
+		#echo $DRIVES_TO_ENCRYPT
+		#echo $CRYPTTAB
+		#exit
 	fi
 	
 	# create LVM
