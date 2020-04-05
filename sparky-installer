@@ -1004,6 +1004,7 @@ GUILOG="cli"
 			if [ "$?" = "0" ]; then
 				TARGETUSER=`cat /tmp/choice.$$`
 			else
+				echo "Error exiting dialog"
 				exit 1
 			fi
 
