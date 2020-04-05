@@ -33,7 +33,7 @@ fi
 DEFAULT_SWAP_SIZE_G="1"
 MIN_PART_SIZE=5 # G
 MAX_PART_SIZE=30 # G
-ROOT_PART_RATIO=3 # of target partition
+ROOT_PART_RATIO=3 # 1/3 of target partition
 
 # set options depending on mode - text or gui
 DIALOG="`which dialog`"
@@ -608,6 +608,7 @@ automatic_partitioning() {
 					(( PARTDRIVESIZE=$PARTDRIVESIZE-$SWAPPARTSIZE ))
 					calc_root_size $PARTDRIVESIZE
 					if [ $ROOT_PART_SIZE -eq 0 ]; then
+						echo "Root partition too small"
 						exit 1
 					fi
 					(( PARTDRIVESIZE=$PARTDRIVESIZE-$ROOT_PART_SIZE ))
@@ -673,6 +674,7 @@ automatic_partitioning() {
 					LVM=0
 					calc_root_size $PARTDRIVESIZE
 					if [ $ROOT_PART_SIZE -eq 0 ]; then
+						echo "Root partition too small"
 						exit 1
 					fi
 					(( PARTDRIVESIZE=$PARTDRIVESIZE-$ROOT_PART_SIZE ))
@@ -804,6 +806,7 @@ automatic_partitioning() {
 			"4"|"8") #lvm separate home
 				calc_root_size $VGSIZE
 				if [ $ROOT_PART_SIZE -eq 0 ]; then
+					echo "Root partition too small"
 					exit 1
 				fi
 				(( ROOT_PART_SIZE=$ROOT_PART_SIZE/G ))
