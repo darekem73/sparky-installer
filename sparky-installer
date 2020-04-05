@@ -890,7 +890,9 @@ mount_partitions() {
 			mkdir -p /TARGET/$MOUNT
 			mount $PART /TARGET/$MOUNT -o rw
 			sleep 2
-			tune2fs -c 0 -i -0 $PART
+			if [[ $FS =~ ext[234] ]]; then
+				tune2fs -c 0 -i -0 $PART
+			fi
 		fi
 		UUID=$(blkid -o value -s UUID $PART)
 		if [ "$FSTAB" == "" ];then
