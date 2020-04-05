@@ -292,6 +292,26 @@ get_password() {
 	rm $CHOICE_FILE
 }
 
+clear_lvm() {
+	LIST_OF_VGS=$(vgs | sed 1D | awk '{printf "%s ", $1}')
+	LIST_OF_PVS=$(pvs | sed 1D | awk '{printf "%s ", $1}')
+	LIST_OF_LVS=$(lvs | sed 1D | awk '{printf "%s ", $1}')
+
+	$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Delete all\n$LIST_OF_VGS\n$LIST_OF_LVS\n$LIST_OF_PVS?" $HEIGHT $WIDTH
+	if [ $? != 0 ]; then
+		exit 1
+	fi
+	
+	for f in $LIST_OF_VGS; do
+		lvremove $f
+		vgremove $f
+	done
+
+	for f in $LIST_OF_PVS; do
+		pvremove $f
+	done
+}
+
 drive_to_part() {
 	DRIVES=`lsblk -l -p | grep 'disk' | awk '{print $1}'`
 	partdrivemenu=""
@@ -740,7 +760,7 @@ automatic_partitioning() {
 			PASS=$(echo $CMD | cut -d: -f2)
 			MAPPED=$(echo $CMD | cut -d: -f3)
 			UUID=$(blkid -o value -s UUID $PART)
-			echo $PASS | cryptsetup luksFormat -q -d - $PART
+			echo $PASS | cryptsetup luksFormat --type luks2 -q -d - $PART
 			sleep 2
 			echo $PASS | sudo cryptsetup luksOpen $PART $MAPPED  -d -
 			sleep 2
@@ -847,6 +867,8 @@ partitioner() {
 
 		select_mount_points
 	else
+		# delete LVM if present, before partitioning
+		clear_lvm
 		automatic_partitioning
 	fi
 	PARTS_TO_MOUNT=$(echo $PARTS_TO_MOUNT | tr "|" "\n" | sort -t ":" -k 2,2 | tr "\n" "|")
@@ -2113,6 +2135,7 @@ fi
 $DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"$LOCAL113\n$PASTEGRUB\n$LOCAL114\n$PASTESERVER\n$LOCAL116" $HEIGHT $WIDTH
 if [ $? != 0 ]; then
 	echo "If you created and encrypted your own partitions chroot to /TARGET and fill in /etc/crypttab and verify /etc/fstab."
+	echo "Afterwards: update-initramfs -u"
 	echo "Remember to umount -R /TARGET before rebooting"
 	exit 0
 else
