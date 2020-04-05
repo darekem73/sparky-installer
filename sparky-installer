@@ -826,7 +826,6 @@ automatic_partitioning() {
 			
 			PARTS_TO_MOUNT="$PARTS_TO_MOUNT|$PART_TO_MOUNT:$MOUNTPOINT:$FSTYPE:$FSTABOPT:$DUMP_PASS"
 		done
-		exit
 	fi
 }
 
