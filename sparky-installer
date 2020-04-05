@@ -773,8 +773,6 @@ automatic_partitioning() {
 	fi
 	
 	# create LVM
-	# TODO: create function to delete any previous lvs,vgs,pvs to start from scratch (not here, somewhere on top)
-
 	if [ $LVM -eq 1 ]; then
 		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Create LVM? on $LVM_PART_DRIVE" $HEIGHT $WIDTH
 		if [ $? != 0 ]; then
