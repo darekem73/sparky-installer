@@ -299,19 +299,20 @@ clear_lvm() {
 	LIST_OF_LVS=$(lvs | sed 1D | awk '{printf "%s ", $1}')
 
 	if [ "$LIST_OF_VGS" != "" ]; then
-		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Delete all LVM objects\n$LIST_OF_VGS\n$LIST_OF_LVS\n$LIST_OF_PVS?" $HEIGHT $WIDTH
+		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Delete all LVM objects\nVGs: $LIST_OF_VGS\nLVs: $LIST_OF_LVS\nPVs: $LIST_OF_PVS?" $HEIGHT $WIDTH
 		if [ $? != 0 ]; then
 			exit 1
 		fi
-		# TODO: vgchange -an VG
-		# yes| ?
+		for vg in LIST_OF_VGS; do
+			vgchange -an $vg
+		done
 		for f in $LIST_OF_VGS; do
-			lvremove $f
-			vgremove $f
+			yes | lvremove $f
+			yes | vgremove $f
 		done
 	
 		for f in $LIST_OF_PVS; do
-			pvremove $f
+			yes | pvremove $f
 		done
 	fi
 }
@@ -1139,6 +1140,7 @@ GrubSelectText () {
 	## Blank the array in case this function is being rerun
 	GrubMenu=()
 	#Drives=$(cat /proc/partitions | grep -v loop | grep -v "Extended" | grep -v "extended" | grep -v "swap" | grep -v "Swap" | grep -v "Hidden" | grep -v major | grep -v "^$" | awk '{ print $4}')
+	#TODO: -p?
 	Drives=$(lsblk -l | grep -v NAME | awk '{print $1}')
 
 	for i in $Drives; do
