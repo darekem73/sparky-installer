@@ -1820,7 +1820,7 @@ fi
 if [ -f /TARGET/etc/initramfs-tools/conf.d/resume ]; then
 	rm -f /TARGET/etc/initramfs-tools/conf.d/resume
 fi
-if [ "$UUIDSWAP" != "" ]; then
+if [ "$UUIDSWAP" != "" && LVM -neq 1 ]; then
 cat > /TARGET/etc/initramfs-tools/conf.d/resume <<FOO
 RESUME=UUID=$UUIDSWAP
 FOO
