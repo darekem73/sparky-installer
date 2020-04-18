@@ -551,7 +551,7 @@ create_partitions() {
 		if [ "$SIZE" == "" ]; then
 			echo "" >> $CHOICE_FILE
 		else
-			(( SIZE = $SIZE / M ))
+			(( SIZE=$SIZE/$M ))
 			echo "+$SIZE""M" >> $CHOICE_FILE
 		fi
 		echo "t" >> $CHOICE_FILE
@@ -812,6 +812,12 @@ automatic_partitioning() {
 		if [ $? != 0 ]; then
 			exit 1
 		fi
+
+		# closing open crypt volumes
+		for f in $(lsblk -l -p | grep crypt | awk '{ print $1 }'); do
+			cryptsetup close $f
+		done
+
 		CRYPTTAB=""
 		NF=$(echo $DRIVES_TO_ENCRYPT | awk -F"|" '{print NF}')
 		for i in `seq $NF`; do
@@ -819,7 +825,6 @@ automatic_partitioning() {
 			PART=$(echo $CMD | cut -d: -f1)
 			PASS=$(echo $CMD | cut -d: -f2)
 			MAPPED=$(echo $CMD | cut -d: -f3)
-			# TODO: close open crypt volumes
 			echo $PASS | cryptsetup luksFormat --type luks2 -l ${#PASS} -q -d - $PART
 			sleep 2
 			echo $PASS | cryptsetup luksOpen $PART $MAPPED -l ${#PASS} -d -
