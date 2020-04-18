@@ -991,7 +991,7 @@ mount_partitions() {
 				umount $PART
 			fi
 			if [ "$FS" != "noformat" ]; then
-				#yes|  ???
+				# TODO: yes|  ?
 				mkfs -t $FS $PART
 				sleep 2
 			else
