@@ -1042,7 +1042,7 @@ generate_fstab() {
 		echo "UUID=$UUID	$MOUNT	$FS	$FSTABOPT	$DUMP_PASS" >> $FSTAB_FILE
 	done
 	echo "# cdrom"
-	echo "$TARGETCDROM    /media/cdrom0   udf,iso9660     user,noauto,exec,utf8   0       0" >> $FSTAB_FILE
+	echo "$TARGETCDROM	/media/cdrom	udf,iso9660	user,noauto,exec,utf8	0	0" >> $FSTAB_FILE
 }
 
 if [ "$GUI" = "" ]; then
