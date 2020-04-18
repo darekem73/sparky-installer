@@ -543,7 +543,7 @@ create_partitions() {
 		SIZE=$(echo $CMD | cut -d: -f3)
 		echo "n" >> $CHOICE_FILE
 		if [ "$TESTEFI" == "" ]; then
-			echo "p" > $CHOICE_FILE
+			echo "p" >> $CHOICE_FILE
 		fi
 		echo $PART >> $CHOICE_FILE
 		echo "" >> $CHOICE_FILE
