@@ -764,7 +764,7 @@ automatic_partitioning() {
 						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
 						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
-						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 2|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 2"
 						LVM_PART_DRIVE="/dev/mapper/$CRYPT_DRIVE_MAPPED"
 
 						DRIVE_TO_ENCRYPT="$PARTDRIVE""4"
