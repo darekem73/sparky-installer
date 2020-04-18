@@ -861,9 +861,7 @@ automatic_partitioning() {
 				LVS_TO_CREATE="swap:1G:none:swap:sw:0 0|root:$ROOT_PART_SIZE""G:/:ext4:errors=remount-ro,defaults:0 1|home::/home:ext4:defaults:0 2"
 				;;
 			"9") #lvm hybrid: 2 PVs separate home
-				(( ROOT_PART_SIZE=$VGSIZE-$SWAPSIZE ))
-				(( ROOT_PART_SIZE=$ROOT_PART_SIZE/G ))
-				LVS_TO_CREATE="swap:1G:none:swap:sw:0 0|root:$ROOT_PART_SIZE""G:/:ext4:errors=remount-ro,defaults:0 1"
+				LVS_TO_CREATE="swap:1G:none:swap:sw:0 0|root::/:ext4:errors=remount-ro,defaults:0 1"
 				;;
 		esac
 		NF=$(echo $LVS_TO_CREATE | awk -F"|" '{print NF}')
