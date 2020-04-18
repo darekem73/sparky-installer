@@ -10,7 +10,8 @@
 # Copyright 2013-2020 Under the GNU GPL2 License
 # Last update 2020/03/09 by pavroo
 # Auto-partitioning added by darekem73 2020/04/06
-#
+# TODO: upgrade system during install
+# 
 # This script requires either yad or dialog to run
 
 # checking to make sure script is running with root privileges
@@ -1253,6 +1254,13 @@ GrubSelectText
 	#$SETCONSOLEDATA
 	#$SETXSERVER
 
+	$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Autoupgrade system during installation?" $HEIGHT $WIDTH
+	if [ $? != 0 ]; then
+		AUTOUPGRADE=0
+	else
+		AUTOUPGRADE=1
+	fi
+
 	if [ "$HOMEPART" != "root" ]; then
 		HOMETEXT=", $HOMEPART $LOCAL79 $HFSTYPE $LOCAL80 /home "
 	fi
@@ -2109,6 +2117,9 @@ apt-get purge --yes mc
 #apt-get purge --yes lvm2
 #apt-get purge --yes cryptsetup
 apt-get autoremove --yes
+if [ $AUTOUPGRADE -eq 1 ]; then
+	apt-get update && apt-get -yq full-upgrade
+fi
 #update-initramfs -t -c -k $(/bin/uname -r)
 update-initramfs -t -c -k all
 shadowconfig on
