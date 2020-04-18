@@ -452,7 +452,8 @@ gather_part_data() {
 			fi
 			FSTABOPT="defaults"
 			DUMP_PASS="0	2"
-			HFSTYPE=$FSTYPE #needed below for rsync
+			HFSTYPE=$FSTYPE #needed below for choosing folders for rsync if noformat and for final message
+			HOMEPART=$PARTTOMOUNT # needed below for final message
 			;;
 		"other")
 			MOUNTPOINT=""
@@ -611,10 +612,14 @@ automatic_partitioning() {
 						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$ROOT_PART_SIZE|3:19:$SWAPPARTSIZE|4:20: "
 						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""3:none:swap:sw:0 0|$PARTDRIVE""4:/home:ext4:defaults:0 2"
 						TARGETPART=$PARTDRIVE""2 # needed below for GRUB installation
+						HFSTYPE="ext4" #needed below final message
+						HOMEPART=$PARTDRIVE""4 # needed below for final message
 					else
 						PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE|2:19:$SWAPPARTSIZE|3:20: "
 						PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""2:none:swap:sw:0 0|$PARTDRIVE""3:/home:ext4:defaults:0 2"
 						TARGETPART=$PARTDRIVE""1 # needed below for GRUB installation
+						HFSTYPE="ext4" #needed below final message
+						HOMEPART=$PARTDRIVE""3 # needed below for final message
 						#part1 bootable
 					fi
 					;;
@@ -697,6 +702,8 @@ automatic_partitioning() {
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
 						DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
 						PARTS_TO_MOUNT="$PARTS_TO_MOUNT|/dev/mapper/$CRYPT_DRIVE_MAPPED:/home:ext4:defaults:0 2"
+						HFSTYPE="ext4" #needed below final message
+						HOMEPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for final message
 					else
 						PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20:$ROOT_PART_SIZE|3:20: "
 
@@ -716,6 +723,8 @@ automatic_partitioning() {
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
 						DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
 						PARTS_TO_MOUNT="$PARTS_TO_MOUNT|/dev/mapper/$CRYPT_DRIVE_MAPPED:/home:ext4:defaults:0 2"
+						HFSTYPE="ext4" #needed below final message
+						HOMEPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for final message
 						#part1 bootable
 					fi
 					;;
@@ -774,6 +783,8 @@ automatic_partitioning() {
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
 						DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
 						PARTS_TO_MOUNT="$PARTS_TO_MOUNT|/dev/mapper/$CRYPT_DRIVE_MAPPED:/home:ext4:defaults:0 2"
+						HFSTYPE="ext4" #needed below final message
+						HOMEPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for final message
 					else
 						PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20:$ROOT_PART_SIZE|3:20: "
 
@@ -793,6 +804,8 @@ automatic_partitioning() {
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
 						DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
 						PARTS_TO_MOUNT="$PARTS_TO_MOUNT|/dev/mapper/$CRYPT_DRIVE_MAPPED:/home:ext4:defaults:0 2"
+						HFSTYPE="ext4" #needed below final message
+						HOMEPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for final message
 						#part1 bootable
 					fi
 					;;
@@ -883,8 +896,11 @@ automatic_partitioning() {
 				lvcreate -l +100%FREE -n $PART $VG_NAME
 			fi
 			PART_TO_MOUNT=$(lsblk -l -p -b | egrep "$VG_NAME.*$PART" | awk '{print $1}')
-			if [[ "$MOUNTPOINT" == "/" ]]; then
+			if [[ "$PART" == "root" ]]; then
 				TARGETPART="$PART_TO_MOUNT" # needed below for GRUB installation
+			elif [[ "$PART" == "home" ]]; then
+				HFSTYPE="ext4" #needed below final message
+				HOMEPART="$PART_TO_MOUNT" # needed below for final message
 			fi
 			PARTS_TO_MOUNT="$PARTS_TO_MOUNT|$PART_TO_MOUNT:$MOUNTPOINT:$FSTYPE:$FSTABOPT:$DUMP_PASS"
 		done
@@ -2152,6 +2168,7 @@ chmod +x /tmp/Grub-Update
 	fi
 
 else
+	# TODO: check if GRUBLOC is correct (needs full path?)
 cat > /tmp/Grub-Install << FOO
 #!/bin/bash
 chroot /TARGET grub-install --force --no-floppy "$GRUBLOC"
