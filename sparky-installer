@@ -1161,8 +1161,7 @@ GrubSelectText () {
 	## Blank the array in case this function is being rerun
 	GrubMenu=()
 	#Drives=$(cat /proc/partitions | grep -v loop | grep -v "Extended" | grep -v "extended" | grep -v "swap" | grep -v "Swap" | grep -v "Hidden" | grep -v major | grep -v "^$" | awk '{ print $4}')
-	#TODO: -p?
-	Drives=$(lsblk -l | grep -v NAME | awk '{print $1}')
+	Drives=$(lsblk -l -p | grep -v NAME | awk '{print $1}')
 
 	for i in $Drives; do
 		PartDrive="$i"
@@ -2168,7 +2167,6 @@ chmod +x /tmp/Grub-Update
 	fi
 
 else
-	# TODO: check if GRUBLOC is correct (needs full path?)
 cat > /tmp/Grub-Install << FOO
 #!/bin/bash
 chroot /TARGET grub-install --force --no-floppy "$GRUBLOC"
