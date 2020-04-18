@@ -946,6 +946,8 @@ partitioner() {
 	fi
 	PARTS_TO_MOUNT=$(echo $PARTS_TO_MOUNT | tr "|" "\n" | sort -t ":" -k 2,2 | tr "\n" "|")
 	PARTS_TO_MOUNT=${PARTS_TO_MOUNT%?}
+	echo $PARTS_TO_MOUNT
+	exit
 }
 
 mount_partitions() {
