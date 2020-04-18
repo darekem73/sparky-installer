@@ -9,7 +9,7 @@
 # for SparkyLinux by pavroo <pavroo@onet.eu> 2013/08/04
 # Copyright 2013-2020 Under the GNU GPL2 License
 # Last update 2020/03/09 by pavroo
-# Auto partitioning by darekem73 2020/04/06
+# Auto-partitioning added by darekem73 2020/04/06
 #
 # This script requires either yad or dialog to run
 
@@ -569,6 +569,7 @@ create_partitions() {
 		echo $TYPE >> $CHOICE_FILE
 	done
 	if [ "$TESTEFI" == "" ]; then
+		#make boot partition bootable if not EFI
 		echo "a" >> $CHOICE_FILE
 		echo "1" >> $CHOICE_FILE
 	fi
@@ -638,7 +639,7 @@ automatic_partitioning() {
 					;;
 			esac
 			;;
-		"5"|"6"|"7"|"8") # with encryption
+		"5"|"6"|"7"|"8"|"9") # with encryption
 			CRYPT=1
 			if [ "$TESTEFI" != "" ]; then
 				(( EFIPARTSIZE=500*M ))
@@ -718,7 +719,7 @@ automatic_partitioning() {
 						#part1 bootable
 					fi
 					;;
-				"7"|"8") # lvm aio #lvm separate home
+				"7"|"8") # lvm aio #lvm separate home 
 					LVM=1
 					if [ "$TESTEFI" != "" ]; then
 						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20: "
@@ -740,6 +741,58 @@ automatic_partitioning() {
 						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
 						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot:ext4:defaults:0 2"
 						LVM_PART_DRIVE="/dev/mapper/$CRYPT_DRIVE_MAPPED"
+						#part1 bootable
+					fi
+					;;
+				"9") #lvm hybrid: 2 PVs separate home
+					LVM=1
+					calc_root_size $PARTDRIVESIZE
+					if [ $ROOT_PART_SIZE -eq 0 ]; then
+						echo "Root partition too small"
+						exit 1
+					fi
+					(( SWAPPARTSIZE=1*G ))
+					(( ROOT_PART_SIZE=$ROOT_PART_SIZE+$SWAPPARTSIZE ))
+					(( PARTDRIVESIZE=$PARTDRIVESIZE-$ROOT_PART_SIZE ))
+
+					if [ "$TESTEFI" != "" ]; then
+						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$BOOTPARTSIZE|3:20:$ROOT_PART_SIZE|4:20: "
+
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""3"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
+						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/boot:ext4:defaults:0 2|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+						LVM_PART_DRIVE="/dev/mapper/$CRYPT_DRIVE_MAPPED"
+
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""4"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
+						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVES_TO_ENCRYPT_TEXT_ONLY|$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTS_TO_MOUNT|/dev/mapper/$CRYPT_DRIVE_MAPPED:/home:ext4:defaults:0 2"
+					else
+						PARTS_TO_CREATE="1:20:$BOOTPARTSIZE|2:20:$ROOT_PART_SIZE|3:20: "
+
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""2"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
+						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot:ext4:defaults:0 2|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+						LVM_PART_DRIVE="/dev/mapper/$CRYPT_DRIVE_MAPPED"
+
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""3"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
+						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVES_TO_ENCRYPT_TEXT_ONLY|$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTS_TO_MOUNT|/dev/mapper/$CRYPT_DRIVE_MAPPED:/home:ext4:defaults:0 2"
 						#part1 bootable
 					fi
 					;;
@@ -812,6 +865,15 @@ automatic_partitioning() {
 				(( ROOT_PART_SIZE=$ROOT_PART_SIZE/G ))
 				LVS_TO_CREATE="swap:1G:none:swap:sw:0 0|root:$ROOT_PART_SIZE""G:/:ext4:errors=remount-ro,defaults:0 1|home::/home:ext4:defaults:0 2"
 				;;
+			"9") #lvm hybrid: 2 PVs separate home
+				calc_root_size $VGSIZE
+				if [ $ROOT_PART_SIZE -eq 0 ]; then
+					echo "Root partition too small"
+					exit 1
+				fi
+				(( ROOT_PART_SIZE=$ROOT_PART_SIZE/G ))
+				LVS_TO_CREATE="swap:1G:none:swap:sw:0 0|root:$ROOT_PART_SIZE""G:/:ext4:errors=remount-ro,defaults:0 1"
+				;;
 		esac
 		NF=$(echo $LVS_TO_CREATE | awk -F"|" '{print NF}')
 		for i in `seq $NF`; do
@@ -850,7 +912,7 @@ partitioner() {
 	PART_SCHEMAS[6]="Encrypted_separate_home_no_swap"
 	PART_SCHEMAS[7]="Encrypted_LVM_home_on_root+swap"
 	PART_SCHEMAS[8]="Encrypted_LVM_separate_home+swap"
-	PART_SCHEMAS[9]="Encrypted_LVM_two_PVs_separate_home_LV+swap;not_implemented+yet"
+	PART_SCHEMAS[9]="Encrypted_LVM_hybrid-two_PVs_separate_home"
 
 	partschemamenu=""
 	for f in ${!PART_SCHEMAS[@]}; do
