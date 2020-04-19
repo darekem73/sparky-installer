@@ -9,8 +9,9 @@
 # for SparkyLinux by pavroo <pavroo@onet.eu> 2013/08/04
 # Copyright 2013-2020 Under the GNU GPL2 License
 # Last update 2020/03/09 by pavroo
-# Auto-partitioning added by darekem73 2020/04/06
-# 
+# Auto-partitioning added by darekem73 2020/04/19
+# TODO: restore btrfs support
+#
 # This script requires either yad or dialog to run
 
 # checking to make sure script is running with root privileges
@@ -51,12 +52,13 @@ PARTITIONPROG="cfdisk"
 AUTOPARTITIONPROGRAM="fdisk"
 CHOICE_FILE=/tmp/choice.$$
 TITLETEXT="Sparky (Advanced) Installer"
+
 if [ -f /lib/live/mount/rootfs/filesystem.squashfs/etc/sparkybackup/sparkybackup.conf ]; then
-CHECKMINI=`cat /lib/live/mount/rootfs/filesystem.squashfs/etc/sparkybackup/sparkybackup.conf | grep minimal`
-CHECKMINICLI=`cat /lib/live/mount/rootfs/filesystem.squashfs/etc/sparkybackup/sparkybackup.conf | grep cli`
-CHECKISOVER=`cat /lib/live/mount/rootfs/filesystem.squashfs/etc/sparkybackup/sparkybackup.conf | grep CUSTOMISO`
-CHECKSERVER=`cat /lib/live/mount/rootfs/filesystem.squashfs/etc/sparkybackup/sparkybackup.conf | grep server`
-CHECKRESCUE=`cat /lib/live/mount/rootfs/filesystem.squashfs/etc/sparkybackup/sparkybackup.conf | grep rescue`
+	CHECKMINI=`cat /lib/live/mount/rootfs/filesystem.squashfs/etc/sparkybackup/sparkybackup.conf | grep minimal`
+	CHECKMINICLI=`cat /lib/live/mount/rootfs/filesystem.squashfs/etc/sparkybackup/sparkybackup.conf | grep cli`
+	CHECKISOVER=`cat /lib/live/mount/rootfs/filesystem.squashfs/etc/sparkybackup/sparkybackup.conf | grep CUSTOMISO`
+	CHECKSERVER=`cat /lib/live/mount/rootfs/filesystem.squashfs/etc/sparkybackup/sparkybackup.conf | grep server`
+	CHECKRESCUE=`cat /lib/live/mount/rootfs/filesystem.squashfs/etc/sparkybackup/sparkybackup.conf | grep rescue`
 fi
 
 if [ -f /usr/bin/sparky-xterm ]; then
@@ -242,18 +244,18 @@ else
 fi
 
 progressbar () {
-# check yad version, replace it with zenity of the progressbar if yad is a sparky build
-TESTZENITY="`which zenity`"
-if [ "$TESTZENITY" != "" ]; then
-	YADVERSION="`dpkg-query -l | grep yad | grep sparky`"
-	if [ "$YADVERSION" != "" ]; then
-		tail -f /usr/bin/sparky-installer | `which zenity` --window-icon=/usr/share/icons/sparky/sparkybackupsys/sparky48.png --width=450 --progress --pulsate --auto-close --no-cancel --auto-kill --title="$TITLETEXT" --text="$@"
+	# check yad version, replace it with zenity of the progressbar if yad is a sparky build
+	TESTZENITY="`which zenity`"
+	if [ "$TESTZENITY" != "" ]; then
+		YADVERSION="`dpkg-query -l | grep yad | grep sparky`"
+		if [ "$YADVERSION" != "" ]; then
+			tail -f /usr/bin/sparky-installer | `which zenity` --window-icon=/usr/share/icons/sparky/sparkybackupsys/sparky48.png --width=450 --progress --pulsate --auto-close --no-cancel --auto-kill --title="$TITLETEXT" --text="$@"
+		else
+			tail -f /usr/bin/sparky-installer | $DIALOG $TITLE"$TITLETEXT" $TEXT"$@" --no-buttons --progress --pulsate --auto-close --progress-text="$LOCAL122"
+		fi
 	else
 		tail -f /usr/bin/sparky-installer | $DIALOG $TITLE"$TITLETEXT" $TEXT"$@" --no-buttons --progress --pulsate --auto-close --progress-text="$LOCAL122"
 	fi
-else
-	tail -f /usr/bin/sparky-installer | $DIALOG $TITLE"$TITLETEXT" $TEXT"$@" --no-buttons --progress --pulsate --auto-close --progress-text="$LOCAL122"
-fi
 }
 
 . /etc/live/config.conf
@@ -991,8 +993,7 @@ mount_partitions() {
 				umount $PART
 			fi
 			if [ "$FS" != "noformat" ]; then
-				# TODO: yes|  ?
-				mkfs -t $FS $PART
+				yes | mkfs -t $FS $PART
 				sleep 2
 			else
 				FS=$(blkid -o value -s TYPE $PART)
@@ -1064,7 +1065,61 @@ generate_fstab() {
 		echo "UUID=$UUID	$MOUNT	$FS	$FSTABOPT	$DUMP_PASS" >> $FSTAB_FILE
 	done
 	echo "# cdrom"
-	echo "$TARGETCDROM	/media/cdrom	udf,iso9660	user,noauto,exec,utf8	0	0" >> $FSTAB_FILE
+	echo "$TARGETCDROM	/media/cdrom0	udf,iso9660	user,noauto,exec,utf8	0	0" >> $FSTAB_FILE
+}
+
+GrubSelectText () {
+	## Blank the array in case this function is being rerun
+	GrubMenu=()
+	#Drives=$(cat /proc/partitions | grep -v loop | grep -v "Extended" | grep -v "extended" | grep -v "swap" | grep -v "Swap" | grep -v "Hidden" | grep -v major | grep -v "^$" | awk '{ print $4}')
+	Drives=$(lsblk -l -p | grep -v NAME | awk '{print $1}')
+
+	for i in $Drives; do
+		PartDrive="$i"
+
+		if [ "$(echo "$PartDrive" | grep [0-9] )" = "" ]; then
+			GrubMenu=("${GrubMenu[@]}" "$PartDrive" "$LOCAL67")
+		fi
+	done
+
+	GrubMenu=( "${GrubMenu[@]}" "root" "$LOCAL68" "rootmbr" "$LOCAL69" "nogrub" "$LOCAL70" )
+
+	#grub location
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL71\n" $HEIGHT $WIDTH $MENUHEIGHT "${GrubMenu[@]}" 2>$CHOICE_FILE
+
+	if [ "$?" = "0" ]; then
+		GRUBLOCTEST=`cat $CHOICE_FILE`
+	fi
+
+	rm $CHOICE_FILE
+
+	if [ "$GRUBLOCTEST" = "nogrub" ]; then
+		GRUBLOCTEXT="$LOCAL72"
+	elif [ "$GRUBLOCTEST" = "root" ]; then
+		GRUBLOCTEXT="$LOCAL73 $TARGETPART"
+		GRUBLOC="$TARGETPART"
+	elif [ "$GRUBLOCTEST" = "rootmbr" ]; then
+		GRUBLOCTEXT="$LOCAL74 $TARGETPART"
+		GRUBLOC="$PARTDRIVE"
+	elif [ "$GRUBLOCTEST" = "" ]; then
+		GrubSelectText
+		exit 0
+	else
+		GRUBLOCTEXT="$LOCAL75 $GRUBLOCTEST"
+		GRUBLOC="$GRUBLOCTEST"
+	fi
+
+	# set grub delay
+	if [ "$GRUBLOCTEST" != "nogrub" ]; then
+		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL123\n" $HEIGHT $WIDTH $MENUHEIGHT 5 "5 sec $LOCAL124" 10 "10 sec" 20 "20 sec" 30 "30 sec" No "0 sec $LOCAL125" 2>$CHOICE_FILE
+
+		if [ "$?" = "0" ]; then
+			SETDELAY=`cat $CHOICE_FILE`
+		else
+			SETDELAY="5"
+		fi
+		rm $CHOICE_FILE
+	fi
 }
 
 if [ "$GUI" = "" ]; then
@@ -1156,62 +1211,8 @@ GUILOG="cli"
 	rm /tmp/choice.$$
 
 	#grub location
-GrubSelectText () {
-
-	## Blank the array in case this function is being rerun
-	GrubMenu=()
-	#Drives=$(cat /proc/partitions | grep -v loop | grep -v "Extended" | grep -v "extended" | grep -v "swap" | grep -v "Swap" | grep -v "Hidden" | grep -v major | grep -v "^$" | awk '{ print $4}')
-	Drives=$(lsblk -l -p | grep -v NAME | awk '{print $1}')
-
-	for i in $Drives; do
-		PartDrive="$i"
-
-		if [ "$(echo "$PartDrive" | grep [0-9] )" = "" ]; then
-			GrubMenu=("${GrubMenu[@]}" "$PartDrive" "$LOCAL67")
-		fi
-	done
-
-	GrubMenu=( "${GrubMenu[@]}" "root" "$LOCAL68" "rootmbr" "$LOCAL69" "nogrub" "$LOCAL70" )
-
-	#grub location
-	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL71\n" $HEIGHT $WIDTH $MENUHEIGHT "${GrubMenu[@]}" 2>/tmp/choice.$$
-
-	if [ "$?" = "0" ]; then
-		GRUBLOCTEST=`cat /tmp/choice.$$`
-	fi
-
-	rm /tmp/choice.$$
-
-	if [ "$GRUBLOCTEST" = "nogrub" ]; then
-		GRUBLOCTEXT="$LOCAL72"
-	elif [ "$GRUBLOCTEST" = "root" ]; then
-		GRUBLOCTEXT="$LOCAL73 $TARGETPART"
-		GRUBLOC="$TARGETPART"
-	elif [ "$GRUBLOCTEST" = "rootmbr" ]; then
-		GRUBLOCTEXT="$LOCAL74 $TARGETPART"
-		GRUBLOC="$PARTDRIVE"
-	elif [ "$GRUBLOCTEST" = "" ]; then
-		GrubSelectText
-		exit 0
-	else
-		GRUBLOCTEXT="$LOCAL75 $GRUBLOCTEST"
-		GRUBLOC="$GRUBLOCTEST"
-	fi
-
-	# set grub delay
-	if [ "$GRUBLOCTEST" != "nogrub" ]; then
-		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL123\n" $HEIGHT $WIDTH $MENUHEIGHT 5 "5 sec $LOCAL124" 10 "10 sec" 20 "20 sec" 30 "30 sec" No "0 sec $LOCAL125" 2>/tmp/choice.$$
-
-		if [ "$?" = "0" ]; then
-			SETDELAY=`cat /tmp/choice.$$`
-		else
-			SETDELAY="5"
-		fi
-		rm /tmp/choice.$$
-	fi
-}
 	
-GrubSelectText
+	GrubSelectText
 
 	#dpkg-reconfigure tzdata
 	#Timezone setting
@@ -1598,7 +1599,7 @@ No "0 sec $LOCAL125"`
 	fi
 }
 
-GrubSelectGUI
+	GrubSelectGUI
 
 	#Timezone setting
 	$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"$LOCAL76\n\n$LOCAL77"
@@ -1624,7 +1625,7 @@ GrubSelectGUI
 		ZONESINFO=`$DIALOGMENU $TITLE"$TITLETEXT" $MENU  $TEXT"$LOCAL78" Exit "$LOCAL21" $ZONES`
 	done
 
-ZONESINFO=`echo $ZONESINFO | cut -d "|" -f 1`
+	ZONESINFO=`echo $ZONESINFO | cut -d "|" -f 1`
 
 	if [ "$ZONESINFO" = "Exit" ]; then
 		$DIALOG $TITLE"$TITLETEXT" $MSGBOX $TEXT"$LOCAL22"
@@ -1747,7 +1748,7 @@ else
 	rsync -a / /TARGET --ignore-existing --exclude=/{TARGET,live,cdrom,mnt,proc,run,sys,media,lib/live/mount}
 fi
 
-mkdir -p /TARGET/{proc,mnt,run,sys,media/cdrom}
+mkdir -p /TARGET/{proc,mnt,run,sys,media/cdrom0}
 
 echo "$LOCAL102"
 
@@ -1849,7 +1850,7 @@ fi
 if [ -f /TARGET/etc/initramfs-tools/conf.d/resume ]; then
 	rm -f /TARGET/etc/initramfs-tools/conf.d/resume
 fi
-if [ "$UUIDSWAP" != "" && LVM -neq 1 ]; then
+if [ "$UUIDSWAP" != "" && $LVM -eq 0 ]; then
 cat > /TARGET/etc/initramfs-tools/conf.d/resume <<FOO
 RESUME=UUID=$UUIDSWAP
 FOO
@@ -1861,6 +1862,10 @@ echo "INITRAMFS-RESUME:" >> /var/log/sparkylinux-installer.log
 cat /TARGET/etc/initramfs-tools/conf.d/resume >> /var/log/sparkylinux-installer.log
 echo "GENERATED FSTAB:" >> /var/log/sparkylinux-installer.log
 cat /TARGET/etc/fstab >> /var/log/sparkylinux-installer.log
+if [ $CRYPT -eq 1 ]; then
+	echo "GENERATED CRYPTTAB:" >> /var/log/sparkylinux-installer.log
+	cat /TARGET/etc/crypttab >> /var/log/sparkylinux-installer.log
+fi
 echo "" >> /var/log/sparkylinux-installer.log
 
 # remove the old live installer desktop file 
@@ -2198,8 +2203,8 @@ chmod +x /tmp/Grub-Update
 	echo "$LOCAL111"
 	echo "$LOCAL112"
 	sleep 1
-	umount -R /TARGET
-	sleep 1
+	#umount -R /TARGET
+	#sleep 1
 
 	if [ "$GUI" != "" ]; then
 		killall -KILL tail
