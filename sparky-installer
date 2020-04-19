@@ -2283,7 +2283,7 @@ fi
 # exit and reboot
 $DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"$LOCAL113\n$PASTEGRUB\n$LOCAL114\n$PASTESERVER\n$LOCAL116" $HEIGHT $WIDTH
 if [ $? != 0 ]; then
-	echo "If you created and encrypted your own partitions chroot to /TARGET fill in /etc/crypttab and verify /etc/fstab."
+	echo "If you created and encrypted your own partitions or opened existing ones, chroot to /TARGET fill in /etc/crypttab and verify /etc/fstab."
 	echo "Afterwards: update-initramfs -u"
 	echo "Remember to umount -R /TARGET before rebooting"
 	exit 0
