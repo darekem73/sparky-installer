@@ -1,4 +1,4 @@
-	#!/bin/bash
+#!/bin/bash
 
 # remastersys-installer has been created by Tony "Fragadelic" Brijeski
 # Copyright 2008-2012 Under the GNU GPL2 License
@@ -2163,10 +2163,10 @@ apt-get purge --yes live-*
 apt-get purge --yes gparted
 apt-get purge --yes calamares
 apt-get purge --yes mc
-if [ $LVM -neq 1 ]; then
+if [ $LVM -eq 0 ]; then
 	apt-get purge --yes lvm2
 fi
-if [ $CRYPT -neq 1 ]; then
+if [ $CRYPT -eq 0 ]; then
 	apt-get purge --yes cryptsetup
 fi
 apt-get autoremove --yes
