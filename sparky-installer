@@ -30,6 +30,9 @@ fi
 (( K=1024 ))
 (( M=$K*$K ))
 (( G=$K*$K*$K ))
+# TODO: use defaults in autopartitioner
+(( DEFAULT_EFIPARTSIZE=500*$M ))
+(( DEFAULT_BOOTPARTSIZE=500*$M ))
 DEFAULT_SWAP_SIZE_G=1
 (( DEFAULT_SWAP_SIZE=$DEFAULT_SWAP_SIZE_G*$G ))
 MIN_PART_SIZE=5 # G
