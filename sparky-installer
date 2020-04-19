@@ -577,13 +577,26 @@ create_partitions() {
 
 automatic_partitioning() {
 	case $PARTSCHEMA in
-		"1"|"2"|"3"|"4") # no encryption
+		"0"|"1"|"2"|"3"|"4") # no encryption
 			CRYPT=0
 			if [ "$TESTEFI" != "" ]; then
 				(( EFIPARTSIZE=500*$M ))
 				(( PARTDRIVESIZE=$PARTDRIVESIZE-$EFIPARTSIZE ))
 			fi
 			case $PARTSCHEMA in
+				"0") #aio
+					LVM=0
+					if [ "$TESTEFI" != "" ]; then
+						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20: "
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1"
+						TARGETPART=$PARTDRIVE""2 # needed below for GRUB installation
+					else
+						PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1"
+						TARGETPART=$PARTDRIVE""1 # needed below for GRUB installation
+						#part1 bootable
+					fi
+					;;
 				"1") #aio
 					LVM=0
 					(( SWAPPARTSIZE=$DEFAULT_SWAP_SIZE ))
@@ -917,6 +930,7 @@ partitioner() {
 	fi
 	unset PART_SCHEMAS
 	declare -a PART_SCHEMAS
+	PART_SCHEMAS[0]="Home_on_root_no_swap"
 	PART_SCHEMAS[1]="Home_on_root+swap"
 	PART_SCHEMAS[2]="Separate_home+swap"
 	PART_SCHEMAS[3]="LVM_home_on_root+swap"
