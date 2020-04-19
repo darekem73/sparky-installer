@@ -1133,7 +1133,7 @@ GUILOG="cli"
 		fi
 
 		# autologin section; do not work with pure cli
-		if [ "$CHECKMINICLI" = "" ]; then
+		if [ "$CHECKMINICLI" = " " ] || [ "$CHECKSERVER" = " " ]; then
 			$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL126" $HEIGHT $WIDTH $MENUHEIGHT FALSE "$LOCAL128" TRUE "$LOCAL127" 2>/tmp/choice.$$
 			if [ "$?" = "0" ]; then
 				AUTOLOGIN=`cat /tmp/choice.$$`
@@ -1802,6 +1802,35 @@ FOO
 	else
 		echo "Installation grub-efi ok"
 		echo "Installation grub-efi ok" >> /var/log/sparkylinux-installer.log
+	fi
+
+	# install secure boot support if needed
+	if [ -f /sys/firmware/efi/efivars/SecureBoot-* ]; then
+		if [ -d /lib/live/mount/medium/offlinesigned ]; then
+			mkdir -p /TARGET/debs
+			cp /lib/live/mount/medium/offlinesigned/* /TARGET/debs/
+		else
+			mkdir -p /TARGET/debs
+			cp /run/live/medium/offlinesigned/* /TARGET/debs/
+		fi
+cat > /TARGET/tmp/signed-install << FOO
+#!/bin/bash
+dpkg -i /debs/*
+FOO
+		chmod +x /TARGET/tmp/signed-install
+		echo "Installing secure boot support"
+		chroot /TARGET /tmp/signed-install
+		rm -f /TARGET/tmp/signed-install
+		rm -rf /TARGET/debs
+		mkdir -p /TARGET/boot/efi/EFI/debian
+		cp /TARGET/boot/efi/EFI/sparky/* /TARGET/boot/efi/EFI/debian/
+		if [ ! -d /TARGET/usr/share/doc/grub-efi-amd64-signed ]; then
+			echo "Installation grub-efi-signed failed"
+			echo "Installation grub-efi-signed failed" >> /var/log/sparkylinux-installer.log
+		else
+			echo "Installation grub-efi-signed ok"
+			echo "Installation grub-efi-signed ok" >> /var/log/sparkylinux-installer.log
+		fi
 	fi
 fi
 
