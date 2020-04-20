@@ -1034,6 +1034,7 @@ mount_partitions() {
 		if [ "$FS" == "swap" ]; then
 			CHECKSWAP=`blkid | grep $SWAP: | awk '{print $3}' | cut -f2 -d"=" | sed -e 's/"//g'`
 			if [ "$CHECKSWAP" = "swap" ]; then
+				# TODO: what if swap is on?
 				swapon $PART
 			else
 				mkswap $PART
@@ -1762,7 +1763,6 @@ fi
 ##########install_to_hd section##########
 
 mount_partitions
-exit
 
 #get the cdrom device for fstab
 TARGETCDROM="/dev/sr0"
