@@ -282,7 +282,6 @@ get_password() {
 		if [ "$?" = "0" ]; then
 			tmpPASS2=`cat $CHOICE_FILE`
 		else
-			echo "Error exiting password dialog 2; $PASS_TYPE"
 			exit 1
 		fi
 	
@@ -442,7 +441,6 @@ gather_part_data() {
 					FSTABOPT="noatime,defaults"
 					;;
 				"btrfs")
-					# TODO: btrfs
 					FSTABOPT="subvol=@,noatime,space_cache,autodefrag,defaults" #for direct storint in store_part
 					HFSTABOPT="subvol=@home,defaults,noatime,space_cache,autodefrag" # needed for subvolume fstab entry
 					;;
@@ -483,7 +481,6 @@ gather_part_data() {
 					FSTABOPT="noatime,defaults"
 					;;
 				"btrfs")
-					# TODO: btrfs
 					FSTABOPT="defaults,noatime,space_cache,autodefrag" #for storing in store_part
 					HFSTABOPT="defaults,noatime,space_cache,autodefrag" #will overwrite HFSTAB from root FS entry; to be used only if btrfs and HOMEPART=Exit
 					;;
@@ -1064,7 +1061,7 @@ mount_partitions() {
 			fi
 			UUIDSWAP=$(blkid -o value -s UUID $PART)
 		else
-			# unmount all mountpoints of $PART; warning - possible deadlock(?)
+			# unmount all mountpoints of $PART; TODO warning - possible deadlock(?)
 			while [ "`mount | grep $PART`" ]; do
 				umount -R $(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | grep -v "SWAP" | grep -m 1 $PART | awk 'NF>1 {print $2}')
 			done
