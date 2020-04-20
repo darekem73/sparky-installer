@@ -604,9 +604,15 @@ create_partitions() {
 		echo "1" >> $CHOICE_FILE
 	fi
 	echo "w" >> $CHOICE_FILE
-	cp $CHOICE_FILE ~/
-	exit
 
+	# unmount all /TARGET & swapoff prior to autopartition
+	while [ "$(mount | grep "/TARGET")" ]; do
+		umount -R /TARGET
+	done
+	CHECKSWAP=`blkid | grep $SWAP: | awk '{print $3}' | cut -f2 -d"=" | sed -e 's/"//g'`
+	if [ "$CHECKSWAP" = "swap" ]; then
+		swapoff $PART
+	fi
 	#autopartition device
 	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
 	rm $CHOICE_FILE
@@ -1049,10 +1055,10 @@ mount_partitions() {
 			fi
 			UUIDSWAP=$(blkid -o value -s UUID $PART)
 		else
-			if [ "`mount | grep $PART`" ]; then
-				# TODO: does it work properly? multiple umounts needed for all mountpoints?
+			# unmount all mountpoints of $PART
+			while [ "$(mount | grep $PART)" ]; do
 				umount $PART
-			fi
+			done
 			if [ "$FS" != "noformat" ]; then
 				case $FS in
 					"vfat"|"ext2"|"ext3"|"ext4")
