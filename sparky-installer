@@ -416,7 +416,7 @@ gather_part_data() {
 			else
 				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Format $PART_TYPE?" $HEIGHT $WIDTH
 				if [ $? != 0 ]; then
-					FSTYPE="noformat"	
+					FSTYPE="noformat"
 				fi
 				status=0
 			fi
@@ -1037,7 +1037,7 @@ mount_partitions() {
 				umount $PART
 			fi
 			if [ "$FS" != "noformat" ]; then
-				yes | mkfs -t $FS $PART
+				yes | mkfs -f -t $FS $PART
 				sleep 2
 			else
 				FS=$(blkid -o value -s TYPE $PART)
