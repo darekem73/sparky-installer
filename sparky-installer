@@ -631,6 +631,7 @@ automatic_partitioning() {
 						TARGETPART=$PARTDRIVE""1 # needed below for GRUB installation
 						#part1 bootable
 					fi
+					HOMEPART="Exit" # needed for summary text
 					;;
 				"1") #aio
 					LVM=0
@@ -647,6 +648,7 @@ automatic_partitioning() {
 						TARGETPART=$PARTDRIVE""1 # needed below for GRUB installation
 						#part1 bootable
 					fi
+					HOMEPART="Exit" # needed for summary text
 					;;
 				"2") #separate home
 					LVM=0
@@ -1030,7 +1032,8 @@ mount_partitions() {
 		FSTABOPT=$(echo $CMD | cut -d: -f4)
 		DUMP_PASS=$(echo $CMD | cut -d: -f5)
 		if [ "$FS" == "swap" ]; then
-			if [ "`mount | grep $PART`" ]; then
+			CHECKSWAP=`blkid | grep $SWAP: | awk '{print $3}' | cut -f2 -d"=" | sed -e 's/"//g'`
+			if [ "$CHECKSWAP" = "swap" ]; then
 				swapon $PART
 			else
 				mkswap $PART
@@ -1039,6 +1042,7 @@ mount_partitions() {
 			UUIDSWAP=$(blkid -o value -s UUID $PART)
 		else
 			if [ "`mount | grep $PART`" ]; then
+				# TODO: does it work properly?
 				umount $PART
 			fi
 			if [ "$FS" != "noformat" ]; then
@@ -1076,7 +1080,7 @@ mount_partitions() {
 			# actually mount partition; if root and btrfs - partitions will have been mounted above
 			if [[ "$FS" != "btrfs" || "$MOUNT" != "/" ]]; then
 				mkdir -p /TARGET/$MOUNT
-				mount $PART /TARGET/$MOUNT -o rw
+				mount -t $FS $PART /TARGET/$MOUNT -o rw
 				sleep 2
 				if [[ $FS =~ ext[234] ]]; then
 					tune2fs -c 0 -i -0 $PART
