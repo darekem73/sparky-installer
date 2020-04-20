@@ -613,7 +613,7 @@ create_partitions() {
 			umount $p
 		done
 	done
-	CHECKSWAP=$(lsblk -o NAME,MOUNTPOINT -l -p -b | grep -v "SWAP" | awk 'NF>1 {print $1}')
+	CHECKSWAP=$(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | awk 'NF>1 && $2 ~ /SWAP/ {print $1}')
 	echo $CHECKSWAP
 	if [ "$CHECKSWAP" != "" ]; then
 		swapoff $CHECKSWAP
