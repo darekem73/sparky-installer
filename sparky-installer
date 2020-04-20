@@ -435,7 +435,7 @@ gather_part_data() {
 				status=0
 			fi
 			case $FSTYPE in
-				"ext")
+				"ext2"|"ext3"|"ext4")
 					FSTABOPT="errors=remount-ro,defaults"
 					;;
 				"xfs")
@@ -472,7 +472,7 @@ gather_part_data() {
 				status=0
 			fi
 			case $FSTYPE in
-				"ext")
+				"ext2"|"ext3"|"ext4")
 					FSTABOPT="defaults"
 					;;
 				"xfs")
@@ -1037,8 +1037,16 @@ mount_partitions() {
 				umount $PART
 			fi
 			if [ "$FS" != "noformat" ]; then
-				echo $FS $PART
-				yes | mkfs -t $FS $PART
+				case $FS in
+					"ext2"|"ext3"|"ext4")
+						yes | mkfs -t $FS $PART
+						;;
+					"xfs")
+						mkfs.xfs -f $PART
+						;;
+					"btrfs")
+						;;
+				esac
 				sleep 2
 			else
 				FS=$(blkid -o value -s TYPE $PART)
