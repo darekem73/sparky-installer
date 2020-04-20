@@ -606,10 +606,12 @@ create_partitions() {
 	echo "w" >> $CHOICE_FILE
 
 	# unmount all /TARGET & swapoff prior to autopartition
-	PARTSTOUNMOUNT=$(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | grep $PARTDRIVE | awk 'NF>1 {print $1}')
+	PARTSTOUNMOUNT=$(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | grep $PARTDRIVE | grep -v SWAP | awk 'NF>1 {print $1}')
 	echo $PARTSTOUNMOUNT
 	for p in $PARTSTOUNMOUNT; do
-		umount $p
+		while [ "`mount | grep $p`" ]; do
+			umount $p
+		done
 	done
 	CHECKSWAP=`blkid | grep $SWAP: | awk '{print $3}' | cut -f2 -d"=" | sed -e 's/"//g'`
 	if [ "$CHECKSWAP" = "swap" ]; then
