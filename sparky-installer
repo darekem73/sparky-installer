@@ -10,7 +10,6 @@
 # Copyright 2013-2020 Under the GNU GPL2 License
 # Last update 2020/03/09 by pavroo
 # Auto-partitioning added by darekem73 2020/04/20
-# TODO: restore btrfs and xfs support
 #
 # This script requires either yad or dialog to run
 
@@ -386,7 +385,7 @@ ask_for_filesystem() {
 	else
 		NOFORMAT=""
 	fi
-	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select filesystem for $LOCATION" $HEIGHT $WIDTH $MENUHEIGHT $NOFORMAT ext4 "ext4" ext3 "ext3" ext2 "ext2" xfs "XFS" 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select filesystem for $LOCATION" $HEIGHT $WIDTH $MENUHEIGHT $NOFORMAT ext4 "ext4" ext3 "ext3" ext2 "ext2" xfs "Xfs" 2>$CHOICE_FILE
 	
 	if [ "$?" = "0" ]; then
 		FSTYPE=`cat $CHOICE_FILE`
@@ -417,7 +416,7 @@ gather_part_data() {
 			else
 				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Format $PART_TYPE?" $HEIGHT $WIDTH
 				if [ $? != 0 ]; then
-				FSTYPE="noformat"	
+					FSTYPE="noformat"	
 				fi
 				status=0
 			fi
