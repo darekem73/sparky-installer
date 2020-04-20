@@ -604,6 +604,7 @@ create_partitions() {
 		echo "1" >> $CHOICE_FILE
 	fi
 	echo "w" >> $CHOICE_FILE
+	cp $CHOICE_FILE ~/
 
 	#autopartition device
 	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
@@ -1173,7 +1174,6 @@ GrubSelectText () {
 
 	for i in $Drives; do
 		PartDrive="$i"
-
 		if [ "$(echo "$PartDrive" | grep [0-9] )" = "" ]; then
 			GrubMenu=("${GrubMenu[@]}" "$PartDrive" "$LOCAL67")
 		fi
@@ -1183,7 +1183,6 @@ GrubSelectText () {
 
 	#grub location
 	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL71\n" $HEIGHT $WIDTH $MENUHEIGHT "${GrubMenu[@]}" 2>$CHOICE_FILE
-
 	if [ "$?" = "0" ]; then
 		GRUBLOCTEST=`cat $CHOICE_FILE`
 	fi
@@ -1208,7 +1207,6 @@ GrubSelectText () {
 	# set grub delay
 	if [ "$GRUBLOCTEST" != "nogrub" ]; then
 		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL123\n" $HEIGHT $WIDTH $MENUHEIGHT 5 "5 sec $LOCAL124" 10 "10 sec" 20 "20 sec" 30 "30 sec" No "0 sec $LOCAL125" 2>$CHOICE_FILE
-
 		if [ "$?" = "0" ]; then
 			SETDELAY=`cat $CHOICE_FILE`
 		else
