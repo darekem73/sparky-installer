@@ -1042,12 +1042,12 @@ mount_partitions() {
 			UUIDSWAP=$(blkid -o value -s UUID $PART)
 		else
 			if [ "`mount | grep $PART`" ]; then
-				# TODO: does it work properly?
+				# TODO: does it work properly? multiple umounts needed for all mountpoints?
 				umount $PART
 			fi
 			if [ "$FS" != "noformat" ]; then
 				case $FS in
-					"ext2"|"ext3"|"ext4")
+					"vfat"|"ext2"|"ext3"|"ext4")
 						yes | mkfs -t $FS $PART
 						;;
 					"xfs")
