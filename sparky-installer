@@ -607,6 +607,7 @@ create_partitions() {
 
 	# unmount all /TARGET & swapoff prior to autopartition
 	PARTSTOUNMOUNT=$(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | grep part | grep $PARTDRIVE | awk 'NF>1')
+	echo $PARTSTOUNMOUNT
 	for p in $PARTSTOUNMOUNT; do
 		umount $p
 	done
@@ -614,6 +615,8 @@ create_partitions() {
 	if [ "$CHECKSWAP" = "swap" ]; then
 		swapoff $PART
 	fi
+	exit
+
 	#autopartition device
 	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
 	rm $CHOICE_FILE
