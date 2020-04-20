@@ -414,8 +414,11 @@ gather_part_data() {
 			MOUNTPOINT="/boot/efi"
 			if [ "$PARTTOMOUNT" = "Exit" ]; then
 				status=1
-			else 
-				ask_for_filesystem $PART_TYPE "noformat"
+			else
+				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Format $PART_TYPE?" $HEIGHT $WIDTH
+				if [ $? != 0 ]; then
+				FSTYPE="noformat"	
+				fi
 				status=0
 			fi
 			FSTABOPT="defaults"
