@@ -9,8 +9,8 @@
 # for SparkyLinux by pavroo <pavroo@onet.eu> 2013/08/04
 # Copyright 2013-2020 Under the GNU GPL2 License
 # Last update 2020/03/09 by pavroo
-# Auto-partitioning added by darekem73 2020/04/19
-# TODO: restore btrfs support
+# Auto-partitioning added by darekem73 2020/04/20
+# TODO: restore btrfs and xfs support
 #
 # This script requires either yad or dialog to run
 
@@ -353,7 +353,7 @@ ask_for_part() {
 		partmenu="$partmenu $part $partsize"
 	done
 	
-	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select partition for $TYPE" $HEIGHT $WIDTH $MENUHEIGHT Exit "Wyjscie" $partmenu 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select partition for $TYPE" $HEIGHT $WIDTH $MENUHEIGHT Exit "Exit" $partmenu 2>$CHOICE_FILE
 	
 	if [ "$?" = "0" ]; then
 		PARTTOMOUNT=`cat $CHOICE_FILE`
@@ -415,10 +415,13 @@ gather_part_data() {
 			if [ "$PARTTOMOUNT" = "Exit" ]; then
 				status=1
 			else 
+				ask_for_filesystem $PART_TYPE "noformat"
 				status=0
 			fi
 			FSTABOPT="defaults"
 			DUMP_PASS="0	0"
+			TARGETEFI=$PARTTOMOUNT
+			FORMATEFIPART=$FSTYPE
 			;;
 		"root")
 			MOUNTPOINT="/"
@@ -429,8 +432,10 @@ gather_part_data() {
 				ask_for_filesystem $PART_TYPE "format"
 				status=0
 			fi
+			# TODO: btrfs xfs
 			FSTABOPT="errors=remount-ro,defaults"
 			DUMP_PASS="0	1"
+			ROOTFSTYPE=$FSTYPE # TODO: substitute FSTYPE in log file with ROOTFSTYPE
 			TARGETPART=$PARTTOMOUNT #needed below for GRUB installation
 			;;
 		"swap")
@@ -448,12 +453,14 @@ gather_part_data() {
 			;;
 		"home")
 			if [ "$PARTTOMOUNT" = "Exit" ]; then
+				# TODO: mark if home on root for btrfs root
 				status=0
 			else
 				FSTYPE=""
 				ask_for_filesystem $PART_TYPE "noformat"
 				status=0
 			fi
+			# TODO: btrfs xfs
 			FSTABOPT="defaults"
 			DUMP_PASS="0	2"
 			HFSTYPE=$FSTYPE #needed below for choosing folders for rsync if noformat and for final message
@@ -497,6 +504,7 @@ select_mount_points() {
 	for part in $MANDATORY_PARTS; do
 		gather_part_data $part
 		if [ $? -eq 0 ]; then
+			# home on root = Exit, don't mount separate partition
 			if [ "$PARTTOMOUNT" != "Exit" ]; then
 				store_parts
 			fi
