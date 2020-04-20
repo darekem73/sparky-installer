@@ -618,7 +618,6 @@ create_partitions() {
 	if [ "$CHECKSWAP" != "" ]; then
 		swapoff $CHECKSWAP
 	fi
-	exit
 
 	#autopartition device
 	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
@@ -1052,7 +1051,7 @@ mount_partitions() {
 		FSTABOPT=$(echo $CMD | cut -d: -f4)
 		DUMP_PASS=$(echo $CMD | cut -d: -f5)
 		if [ "$FS" == "swap" ]; then
-			CHECKSWAP=$(lsblk -o NAME,MOUNTPOINT -l -p -b | grep -v "SWAP" | awk 'NF>1 {print $1}')
+			CHECKSWAP=$(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | awk 'NF>1 && $2 ~ /SWAP/ {print $1}')
 			if [ "$CHECKSWAP" != "" ]; then
 				swapoff $CHECKSWAP
 			fi
