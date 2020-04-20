@@ -385,7 +385,7 @@ ask_for_filesystem() {
 	else
 		NOFORMAT=""
 	fi
-	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select filesystem for $LOCATION" $HEIGHT $WIDTH $MENUHEIGHT $NOFORMAT ext4 "ext4" ext3 "ext3" ext2 "ext2" xfs "Xfs" 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select filesystem for $LOCATION" $HEIGHT $WIDTH $MENUHEIGHT $NOFORMAT ext4 "ext4" ext3 "ext3" ext2 "ext2" btrfs "Btrfs" xfs "Xfs" 2>$CHOICE_FILE
 	
 	if [ "$?" = "0" ]; then
 		FSTYPE=`cat $CHOICE_FILE`
@@ -443,6 +443,8 @@ gather_part_data() {
 					;;
 				"btrfs")
 					# TODO: btrfs
+					FSTABOPT="subvol=@,noatime,space_cache,autodefrag,defaults" #for direct storint in store_part
+					HFSTABOPT="subvol=@home,defaults,noatime,space_cache,autodefrag" # needed for subvolume fstab entry
 					;;
 			esac
 			DUMP_PASS="0	1"
@@ -465,6 +467,7 @@ gather_part_data() {
 			;;
 		"home")
 			if [ "$PARTTOMOUNT" = "Exit" ]; then
+				FSTYPE=""
 				status=0
 			else
 				FSTYPE=""
@@ -480,11 +483,13 @@ gather_part_data() {
 					;;
 				"btrfs")
 					# TODO: btrfs
+					FSTABOPT="defaults,noatime,space_cache,autodefrag" #for storing in store_part
+					HFSTABOPT="defaults,noatime,space_cache,autodefrag" #will overwrite HFSTAB from root FS entry; to be used only if btrfs and HOMEPART=Exit
 					;;
 			esac
 			DUMP_PASS="0	2"
 			HFSTYPE=$FSTYPE #needed below for choosing folders for rsync if noformat and for final message
-			HOMEPART=$PARTTOMOUNT # Exit=home_on_root, other options n/a; needed below for final message
+			HOMEPART=$PARTTOMOUNT # Exit=home_on_root or @home subvolume needs to be created, other options n/a; needed below for final message
 			;;
 		"other")
 			MOUNTPOINT=""
@@ -1045,25 +1050,54 @@ mount_partitions() {
 						mkfs.xfs -f $PART
 						;;
 					"btrfs")
+						mkfs.btrfs -f $PART
+						sleep 2
+						# TODO: refactor
+						if [ "$MOUNT" = "/" ]; then
+							mount -o rw $PART /mnt
+							# Create subvolume
+							btrfs subvolume create /mnt/@
+							# Mount the subvolume
+							mount -t btrfs -o subvol=@,defaults,nodatacow $PART /TARGET
+							if [ "$HOMEPART" = "Exit" ]; then
+								# @home subvolume is needed
+								btrfs subvolume create /mnt/@home
+								mkdir -p /TARGET/home
+								mount -t btrfs -o subvol=@home,defaults,nodatacow $PART /TARGET/home
+							fi
+						fi
 						;;
 				esac
 				sleep 2
 			else
 				FS=$(blkid -o value -s TYPE $PART)
 			fi
-			#echo $MOUNT
-			mkdir -p /TARGET/$MOUNT
-			mount $PART /TARGET/$MOUNT -o rw
-			sleep 2
-			if [[ $FS =~ ext[234] ]]; then
-				tune2fs -c 0 -i -0 $PART
+			# TODO: mounting above not elegant, introduce SUBVOLS_TO_MOUNT(?)
+			# actually mount partition; if root and btrfs - partitions will have been mounted above
+			if [ "$FS" != "btrfs" || "$MOUNT" != "/" ]; then
+				mkdir -p /TARGET/$MOUNT
+				mount $PART /TARGET/$MOUNT -o rw
+				sleep 2
+				if [[ $FS =~ ext[234] ]]; then
+					tune2fs -c 0 -i -0 $PART
+				fi
 			fi
 		fi
 		UUID=$(blkid -o value -s UUID $PART)
 		if [ "$FSTAB" == "" ];then
 			FSTAB="$PART:$UUID:$MOUNT:$FS:$FSTABOPT:$DUMP_PASS"
+			# TODO: not elegant
+			if [ "$FS" = "btrfs" && "$HOMEPART" = "Exit" ]; then
+				HOMEUUID=$UUID
+				FSTAB="$FSTAB|$PART:$UUID:/home:$FS:$HFSTABOPT:0 2"
+			fi
 		else
 			FSTAB="$FSTAB|$PART:$UUID:$MOUNT:$FS:$FSTABOPT:$DUMP_PASS"
+			# TODO: not elegant
+			if [ "$FS" = "btrfs" && "$HOMEPART" = "Exit" ]; then
+				HOMEUUID=$UUID
+				FSTAB="$FSTAB|$PART:$UUID:/home:$FS:$HFSTABOPT:0 2"
+			fi
 		fi
 	done
 }
@@ -1143,7 +1177,6 @@ GrubSelectText () {
 	if [ "$?" = "0" ]; then
 		GRUBLOCTEST=`cat $CHOICE_FILE`
 	fi
-
 	rm $CHOICE_FILE
 
 	if [ "$GRUBLOCTEST" = "nogrub" ]; then
@@ -1725,6 +1758,7 @@ fi
 ##########install_to_hd section##########
 
 mount_partitions
+exit
 
 #get the cdrom device for fstab
 TARGETCDROM="/dev/sr0"
