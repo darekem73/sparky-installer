@@ -386,7 +386,7 @@ ask_for_filesystem() {
 	else
 		NOFORMAT=""
 	fi
-	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select filesystem for $LOCATION" $HEIGHT $WIDTH $MENUHEIGHT $NOFORMAT ext4 "ext4" ext3 "ext3" ext2 "ext2" 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select filesystem for $LOCATION" $HEIGHT $WIDTH $MENUHEIGHT $NOFORMAT ext4 "ext4" ext3 "ext3" ext2 "ext2" xfs "XFS" 2>$CHOICE_FILE
 	
 	if [ "$?" = "0" ]; then
 		FSTYPE=`cat $CHOICE_FILE`
@@ -420,8 +420,8 @@ gather_part_data() {
 			fi
 			FSTABOPT="defaults"
 			DUMP_PASS="0	0"
-			TARGETEFI=$PARTTOMOUNT
-			FORMATEFIPART=$FSTYPE
+			TARGETEFI=$PARTTOMOUNT #needed for final message
+			FORMATEFIPART=$FSTYPE #needed for final message
 			;;
 		"root")
 			MOUNTPOINT="/"
@@ -432,10 +432,19 @@ gather_part_data() {
 				ask_for_filesystem $PART_TYPE "format"
 				status=0
 			fi
-			# TODO: btrfs xfs
-			FSTABOPT="errors=remount-ro,defaults"
+			case $FSTYPE in
+				"ext")
+					FSTABOPT="errors=remount-ro,defaults"
+					;;
+				"xfs")
+					FSTABOPT="noatime,defaults"
+					;;
+				"btrfs")
+					# TODO: btrfs
+					;;
+			esac
 			DUMP_PASS="0	1"
-			ROOTFSTYPE=$FSTYPE # TODO: substitute FSTYPE in log file with ROOTFSTYPE
+			ROOTFSTYPE=$FSTYPE #needed for final message
 			TARGETPART=$PARTTOMOUNT #needed below for GRUB installation
 			;;
 		"swap")
@@ -454,18 +463,26 @@ gather_part_data() {
 			;;
 		"home")
 			if [ "$PARTTOMOUNT" = "Exit" ]; then
-				# TODO: mark if home on root for btrfs root
 				status=0
 			else
 				FSTYPE=""
 				ask_for_filesystem $PART_TYPE "noformat"
 				status=0
 			fi
-			# TODO: btrfs xfs
-			FSTABOPT="defaults"
+			case $FSTYPE in
+				"ext")
+					FSTABOPT="defaults"
+					;;
+				"xfs")
+					FSTABOPT="noatime,defaults"
+					;;
+				"btrfs")
+					# TODO: btrfs
+					;;
+			esac
 			DUMP_PASS="0	2"
 			HFSTYPE=$FSTYPE #needed below for choosing folders for rsync if noformat and for final message
-			HOMEPART=$PARTTOMOUNT # needed below for final message
+			HOMEPART=$PARTTOMOUNT # Exit=home_on_root, other options n/a; needed below for final message
 			;;
 		"other")
 			MOUNTPOINT=""
