@@ -610,7 +610,7 @@ create_partitions() {
 	echo $PARTSTOUNMOUNT
 	for p in $PARTSTOUNMOUNT; do
 		while [ "`mount | grep $p`" ]; do
-			umount $p
+			umount -R $(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | grep -v "SWAP" | grep -m 1 $p | awk 'NF>1 {print $2}')
 		done
 	done
 	CHECKSWAP=$(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | awk 'NF>1 && $2 ~ /SWAP/ {print $1}')
