@@ -1038,7 +1038,7 @@ mount_partitions() {
 			fi
 			if [ "$FS" != "noformat" ]; then
 				echo $FS $PART
-				yes | mkfs -f -t $FS $PART
+				yes | mkfs -t $FS $PART
 				sleep 2
 			else
 				FS=$(blkid -o value -s TYPE $PART)
