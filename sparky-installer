@@ -606,7 +606,7 @@ create_partitions() {
 	echo "w" >> $CHOICE_FILE
 
 	# unmount all /TARGET & swapoff prior to autopartition
-	PARTSTOUNMOUNT=$(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | grep part | grep $PARTDRIVE | awk 'NF>1 {print $1}')
+	PARTSTOUNMOUNT=$(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | grep $PARTDRIVE | awk 'NF>1 {print $1}')
 	echo $PARTSTOUNMOUNT
 	for p in $PARTSTOUNMOUNT; do
 		umount $p
