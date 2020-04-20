@@ -466,6 +466,7 @@ gather_part_data() {
 			SWAP=$PARTTOMOUNT #for logging
 			;;
 		"home")
+			MOUNTPOINT="/home"
 			if [ "$PARTTOMOUNT" = "Exit" ]; then
 				FSTYPE=""
 				status=0
@@ -607,14 +608,13 @@ create_partitions() {
 
 	# unmount all /TARGET & swapoff prior to autopartition
 	PARTSTOUNMOUNT=$(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | grep $PARTDRIVE | grep -v "SWAP" | awk 'NF>1 {print $1}')
-	echo $PARTSTOUNMOUNT
 	for p in $PARTSTOUNMOUNT; do
+		# warning - possible deadlock(?)
 		while [ "`mount | grep $p`" ]; do
 			umount -R $(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | grep -v "SWAP" | grep -m 1 $p | awk 'NF>1 {print $2}')
 		done
 	done
 	CHECKSWAP=$(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | awk 'NF>1 && $2 ~ /SWAP/ {print $1}')
-	echo $CHECKSWAP
 	if [ "$CHECKSWAP" != "" ]; then
 		swapoff $CHECKSWAP
 	fi
@@ -1064,9 +1064,9 @@ mount_partitions() {
 			fi
 			UUIDSWAP=$(blkid -o value -s UUID $PART)
 		else
-			# unmount all mountpoints of $PART
-			while [ "$(mount | grep $PART)" ]; do
-				umount $PART
+			# unmount all mountpoints of $PART; warning - possible deadlock(?)
+			while [ "`mount | grep $PART`" ]; do
+				umount -R $(lsblk -o NAME,MOUNTPOINT -l -p -b | sed 1D | grep -v "SWAP" | grep -m 1 $PART | awk 'NF>1 {print $2}')
 			done
 			if [ "$FS" != "noformat" ]; then
 				case $FS in
