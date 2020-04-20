@@ -605,6 +605,7 @@ create_partitions() {
 	fi
 	echo "w" >> $CHOICE_FILE
 	cp $CHOICE_FILE ~/
+	exit
 
 	#autopartition device
 	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
