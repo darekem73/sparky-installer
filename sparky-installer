@@ -1286,10 +1286,10 @@ GUILOG="cli"
 		AUTOUPGRADE=1
 	fi
 
-	if [ "$HOMEPART" != "root" ]; then
-		HOMETEXT=", $HOMEPART $LOCAL79 $HFSTYPE $LOCAL80 /home "
-	elif [ "$HOMEPART" == "Exit" ]; then
+	if [ "$HOMEPART" = "Exit" ]; then
 		HOMETEXT=", /home will be on root filesystem "
+	elif [ "$HOMEPART" != "root" ]; then
+		HOMETEXT=", $HOMEPART $LOCAL79 $HFSTYPE $LOCAL80 /home "
 	fi
 
 	if [ "$HFSTYPE" = "noformat" ]; then
