@@ -1074,7 +1074,7 @@ mount_partitions() {
 			fi
 			# TODO: mounting above not elegant, introduce SUBVOLS_TO_MOUNT(?)
 			# actually mount partition; if root and btrfs - partitions will have been mounted above
-			if [ "$FS" != "btrfs" || "$MOUNT" != "/" ]; then
+			if [[ "$FS" != "btrfs" || "$MOUNT" != "/" ]]; then
 				mkdir -p /TARGET/$MOUNT
 				mount $PART /TARGET/$MOUNT -o rw
 				sleep 2
@@ -1087,14 +1087,14 @@ mount_partitions() {
 		if [ "$FSTAB" == "" ];then
 			FSTAB="$PART:$UUID:$MOUNT:$FS:$FSTABOPT:$DUMP_PASS"
 			# TODO: not elegant
-			if [ "$FS" = "btrfs" && "$HOMEPART" = "Exit" ]; then
+			if [[ "$FS" = "btrfs" && "$HOMEPART" = "Exit" ]]; then
 				HOMEUUID=$UUID
 				FSTAB="$FSTAB|$PART:$UUID:/home:$FS:$HFSTABOPT:0 2"
 			fi
 		else
 			FSTAB="$FSTAB|$PART:$UUID:$MOUNT:$FS:$FSTABOPT:$DUMP_PASS"
 			# TODO: not elegant
-			if [ "$FS" = "btrfs" && "$HOMEPART" = "Exit" ]; then
+			if [[ "$FS" = "btrfs" && "$HOMEPART" = "Exit" ]]; then
 				HOMEUUID=$UUID
 				FSTAB="$FSTAB|$PART:$UUID:/home:$FS:$HFSTABOPT:0 2"
 			fi
