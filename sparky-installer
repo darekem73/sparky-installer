@@ -441,13 +441,14 @@ gather_part_data() {
 					FSTABOPT="noatime,defaults"
 					;;
 				"btrfs")
-					FSTABOPT="subvol=@,noatime,space_cache,autodefrag,defaults" #for direct storint in store_part
+					FSTABOPT="subvol=@,noatime,space_cache,autodefrag,defaults" #for direct storing in store_part
 					HFSTABOPT="subvol=@home,defaults,noatime,space_cache,autodefrag" # needed for subvolume fstab entry
 					;;
 			esac
 			DUMP_PASS="0	1"
 			ROOTFSTYPE=$FSTYPE #needed for final message
 			TARGETPART=$PARTTOMOUNT #needed below for GRUB installation
+			# TODO: add option to encrypt root (no LVM)
 			;;
 		"swap")
 			if [ "$PARTTOMOUNT" = "Exit" ]; then
@@ -462,6 +463,7 @@ gather_part_data() {
 				status=0
 			fi
 			SWAP=$PARTTOMOUNT #for logging
+			# TODO: remove option to use swap if encrypting root
 			;;
 		"home")
 			MOUNTPOINT="/home"
@@ -488,6 +490,7 @@ gather_part_data() {
 			DUMP_PASS="0	2"
 			HFSTYPE=$FSTYPE #needed below for choosing folders for rsync if noformat and for final message
 			HOMEPART=$PARTTOMOUNT # Exit=home_on_root or @home subvolume needs to be created, other options n/a; needed below for final message
+			# TODO: add option to encrypt home (no LVM)
 			;;
 		"other")
 			MOUNTPOINT=""
@@ -886,6 +889,7 @@ automatic_partitioning() {
 	fi
 	create_partitions
 
+	# TODO: create separate function (?)
 	# encrypt and mount drive(s)
 	if [ $CRYPT -eq 1 ]; then
 		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt $DRIVES_TO_ENCRYPT_TEXT_ONLY?\nIt can take several seconds so don't panick!" $HEIGHT $WIDTH
@@ -1009,7 +1013,7 @@ partitioner() {
 	if [ "$PARTSCHEMA" == "Exit" ]; then
 		exit 1
 	fi
-	if [ "$PARTSCHEMA" == "Manual" ]; then
+	if [ "$PARTSCHEMA" = "Manual" ]; then
 		#manual partitioning
 		$PARTITIONPROG $PARTDRIVE
 
@@ -1024,6 +1028,7 @@ partitioner() {
 		MANDATORY_PARTS="$MANDATORY_PARTS root swap home"
 
 		select_mount_points
+		# TODO: if asking for encrypting root or home - add encrypting drives here; add FSTAB and CRYPTTAB creation here
 	else
 		# delete LVM if present, before partitioning
 		clear_lvm
@@ -1076,7 +1081,7 @@ mount_partitions() {
 					"btrfs")
 						mkfs.btrfs -f $PART
 						sleep 2
-						# TODO: refactor
+						# TODO: refactor; move mounting below
 						if [ "$MOUNT" = "/" ]; then
 							mount -o rw $PART /mnt
 							# Create subvolume
@@ -1180,7 +1185,9 @@ generate_fstab() {
 }
 
 GrubSelectText () {
-	# TODO: grub location makes sense for not EFI boot (?)
+	# TODO: grub location makes sense for non-EFI boot (?)
+	# with UEFI GRUB is on the root drive
+
 	## Blank the array in case this function is being rerun
 	GrubMenu=()
 	#Drives=$(cat /proc/partitions | grep -v loop | grep -v "Extended" | grep -v "extended" | grep -v "swap" | grep -v "Swap" | grep -v "Hidden" | grep -v major | grep -v "^$" | awk '{ print $4}')
