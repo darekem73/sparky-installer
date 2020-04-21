@@ -474,7 +474,7 @@ gather_part_data() {
 				status=0
 			fi
 			case $FSTYPE in
-				"ext2"|"ext3"|"ext4")
+				"noformat"|"ext2"|"ext3"|"ext4")
 					FSTABOPT="defaults"
 					;;
 				"xfs")
@@ -1180,6 +1180,7 @@ generate_fstab() {
 }
 
 GrubSelectText () {
+	# TODO: grub location makes sense for not EFI boot (?)
 	## Blank the array in case this function is being rerun
 	GrubMenu=()
 	#Drives=$(cat /proc/partitions | grep -v loop | grep -v "Extended" | grep -v "extended" | grep -v "swap" | grep -v "Swap" | grep -v "Hidden" | grep -v major | grep -v "^$" | awk '{ print $4}')
@@ -1210,6 +1211,7 @@ GrubSelectText () {
 		GRUBLOCTEXT="$LOCAL74 $TARGETPART"
 		GRUBLOC="$PARTDRIVE"
 	elif [ "$GRUBLOCTEST" = "" ]; then
+		# TODO: while loop instead of recursion
 		GrubSelectText
 		exit 0
 	else
