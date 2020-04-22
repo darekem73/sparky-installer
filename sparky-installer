@@ -726,6 +726,7 @@ parts_to_create_to_text() {
 		PART=$(echo $CMD | cut -d: -f1)
 		TYPE=$(echo $CMD | cut -d: -f2)
 		SIZE=$(echo $CMD | cut -d: -f3)
+		# TODO: if size "" - rest of disk
 		if [ "$PARTS_TO_CREATE_TEXT" = "" ]; then
 			PARTS_TO_CREATE_TEXT="$PARTDRIVE$PART	$SIZE""b""	Type: $TYPE"
 		else
