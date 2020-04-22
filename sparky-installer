@@ -1108,7 +1108,7 @@ partitioner() {
 
 	unset PART_SCHEMAS
 	declare -a PART_SCHEMAS
-	PART_SCHEMAS[0]="Homer on root, no swap"
+	PART_SCHEMAS[0]="Home on root, no swap"
 	PART_SCHEMAS[1]="Home on root, swap"
 	PART_SCHEMAS[2]="Separate home, swap"
 	PART_SCHEMAS[3]="LVM, home on root, swap"
