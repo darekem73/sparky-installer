@@ -1101,6 +1101,8 @@ automatic_partitioning() {
 partitioner() {
 	LVM=0
 	CRYPT=0
+	echo "Enter partitioner"
+	exit
 
 	if [ "$PARTDRIVE" = "Exit" ]; then
 		exit 1
