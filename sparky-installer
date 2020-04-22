@@ -10,6 +10,7 @@
 # Copyright 2013-2020 Under the GNU GPL2 License
 # Last update 2020/04/19 by pavroo
 # Auto-partitioning added by darekem73 2020/04/20
+# TODO: function to pretty print mountpoint list
 #
 # This script requires either yad or dialog to run
 
@@ -487,10 +488,14 @@ gather_part_data() {
 					HFSTABOPT="defaults,noatime,space_cache,autodefrag" #will overwrite HFSTAB from root FS entry; to be used only if btrfs and HOMEPART=Exit
 					;;
 			esac
-			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt partition?\n$PART_TO_MOUNT" $HEIGHT $WIDTH
-			if [ $? -eq 0 ]; then
-				# TODO: add option to encrypt home
-
+			if [ "$FSTYPE" != "noformat" ]; then
+				ENCRYPT_HOME=0
+				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt partition?\n$PART_TO_MOUNT" $HEIGHT $WIDTH
+				if [ $? -eq 0 ]; then
+					ENCRYPT_HOME=1
+				fi
+			fi
+			if [ $ENCRYPT_HOME -eq 1 ]; then
 				DRIVE_TO_ENCRYPT="$PART_TO_MOUNT"
 				get_password "$DRIVE_TO_ENCRYPT encryption"
 				DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
@@ -506,6 +511,7 @@ gather_part_data() {
 					DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
 				fi
 				CRYPT=1
+        			EXCLUDED_PARTS="$EXCLUDED_PARTS|$DRIVE_TO_ENCRYPT"
 				PARTTOMOUNT="/dev/mapper/$CRYPT_DRIVE_MAPPED"
 				DUMP_PASS="0	2"
 				HFSTYPE="ext4" #needed below final message
