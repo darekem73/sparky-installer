@@ -448,7 +448,7 @@ gather_part_data() {
 					;;
 			esac
 			ENCRYPT_ROOT=0
-			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
+			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt root partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
 			if [ $? -eq 0 ]; then
 				ENCRYPT_ROOT=1
 			fi
@@ -523,7 +523,7 @@ gather_part_data() {
 			esac
 			ENCRYPT_HOME=0
 			if [[ "$FSTYPE" != "noformat" && "$PARTTOMOUNT" != "Exit" ]]; then
-				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
+				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt home partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
 				if [ $? -eq 0 ]; then
 					ENCRYPT_HOME=1
 				fi
@@ -596,6 +596,24 @@ store_parts() {
 		PARTS_TO_MOUNT="$PARTS_TO_MOUNT|$PARTTOMOUNT:$MOUNTPOINT:$FSTYPE:$FSTABOPT:$DUMP_PASS"
 	fi
         EXCLUDED_PARTS="$EXCLUDED_PARTS|$PARTTOMOUNT"
+}
+
+parts_to_mount_to_text() {
+	NF=$(echo $PARTS_TO_MOUNT | awk -F"|" '{print NF}')
+	PARTS_TO_MOUNT_TEXT=""
+	for i in `seq $NF`; do
+		CMD=$(echo $PARTS_TO_MOUNT | cut -d "|" -f $i)
+		PART=$(echo $CMD | cut -d: -f1)
+		MOUNT=$(echo $CMD | cut -d: -f2)
+		FS=$(echo $CMD | cut -d: -f3)
+		FSTABOPT=$(echo $CMD | cut -d: -f4)
+		DUMP_PASS=$(echo $CMD | cut -d: -f5)
+		if [ "$PARTS_TO_MOUNT_TEXT" = "" ]; then
+			PARTS_TO_MOUNT_TEXT="$PART	$MOUNT	$FS"
+		else
+			PARTS_TO_MOUNT_TEXT="$PARTS_TO_MOUNT_TEXT\n$PART	$MOUNT	$FS"
+		fi
+	done
 }
 
 select_mount_points() {
@@ -699,6 +717,22 @@ create_partitions() {
 	#autopartition device
 	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
 	rm $CHOICE_FILE
+}
+
+parts_to_create_to_text() {
+	PARTS_TO_CREATE_TEXT=""
+	NF=$(echo $PARTS_TO_CREATE | awk -F"|" '{print NF}')
+	for i in `seq $NF`; do
+		CMD=$(echo $PARTS_TO_CREATE | cut -d "|" -f $i)
+		PART=$(echo $CMD | cut -d: -f1)
+		TYPE=$(echo $CMD | cut -d: -f2)
+		SIZE=$(echo $CMD | cut -d: -f3)
+		if [ "$PARTS_TO_CREATE_TEXT" = "" ]; then
+			PARTS_TO_CREATE_TEXT="$PART	$SIZE	$TYPE"
+		else
+			PARTS_TO_CREATE_TEXT="$PARTS_TO_CREATE_TEXT\n$PART	$SIZE	$TYPE"
+		fi
+	done
 }
 
 encrypt_drives() {
@@ -1477,8 +1511,11 @@ GUILOG="cli"
 	fi
 
 	# summarize info and ask to install system
+	parts_to_create_to_text
+	parts_to_mount_to_text
+
 	if [ "$testmode" = "" ]; then
-		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Partitions created: $PARTS_TO_CREATE\nPartitions to mount: $PARTS_TO_MOUNT\n$LOCAL82\n\n$LOCAL83 $TARGETUSER $LOCAL84 $ROOTFSTYPE $LOCAL85 $TARGETPART $LOCAL86 $HOMETEXT $LOCAL87 $GRUBLOCTEXT.\n\n$LOCAL89" $HEIGHT $WIDTH
+		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Partitions created: $PARTS_TO_CREATE_TEXT\nPartitions to mount: $PARTS_TO_MOUNT_TEXT\n$LOCAL82\n\n$LOCAL83 $TARGETUSER $LOCAL84 $ROOTFSTYPE $LOCAL85 $TARGETPART $LOCAL86 $HOMETEXT $LOCAL87 $GRUBLOCTEXT.\n\n$LOCAL89" $HEIGHT $WIDTH
 		if [ $? != 0 ]; then
 			exit 0
 		fi
