@@ -10,7 +10,6 @@
 # Copyright 2013-2020 Under the GNU GPL2 License
 # Last update 2020/04/19 by pavroo
 # Auto-partitioning added by darekem73 2020/04/20
-# TODO: function to pretty print mountpoint list
 # TODO: root encryption without separate boot partition
 # 
 # This script requires either yad or dialog to run
@@ -1100,7 +1099,6 @@ automatic_partitioning() {
 }
 
 partitioner() {
-	drive_to_part
 
 	if [ "$PARTDRIVE" = "Exit" ]; then
 		exit 1
@@ -1135,7 +1133,15 @@ partitioner() {
 	fi
 	if [ "$PARTSCHEMA" = "Manual" ]; then
 		#manual partitioning
-		$PARTITIONPROG $PARTDRIVE
+		PARTITIONING_DONE=0
+		while [ $PARTITIONING_DONE -eq 0 ]; do
+			drive_to_part
+			$PARTITIONPROG $PARTDRIVE
+			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to partition another drive?" $HEIGHT $WIDTH
+			if [ $? != 0 ]; then
+				PARTITIONING_DONE=1
+			fi
+		done
 
 		EXCLUDED_PARTS="loop|sr0|disk"
 		
@@ -1144,17 +1150,16 @@ partitioner() {
 		else
 			MANDATORY_PARTS=()
 		fi
-		
 		MANDATORY_PARTS=( ${MANDATORY_PARTS[@]} root swap home )
 
 		select_mount_points
 		
-		# TODO: if asking for encrypting root or home - add encrypting drives here; add FSTAB and CRYPTTAB creation here
 		if [ $CRYPT -eq 1 ]; then
 			encrypt_drives
 		fi
 	else
 		# delete LVM if present, before partitioning
+		drive_to_part
 		clear_lvm
 		automatic_partitioning
 	fi
