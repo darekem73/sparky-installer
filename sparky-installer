@@ -490,24 +490,20 @@ gather_part_data() {
 			esac
 			if [ "$FSTYPE" != "noformat" ]; then
 				ENCRYPT_HOME=0
-				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt partition?\n$PART_TO_MOUNT" $HEIGHT $WIDTH
+				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
 				if [ $? -eq 0 ]; then
 					ENCRYPT_HOME=1
 				fi
 			fi
 			if [ $ENCRYPT_HOME -eq 1 ]; then
-				DRIVE_TO_ENCRYPT="$PART_TO_MOUNT"
+				DRIVE_TO_ENCRYPT="$PARTTOMOUNT"
 				get_password "$DRIVE_TO_ENCRYPT encryption"
 				DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
-				echo $DRIVE_TO_ENCRYPT
 				if [ "$DRIVES_TO_ENCRYPT_TEXT_ONLY" = "" ]; then
 					DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
 				else
 					DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVES_TO_ENCRYPT_TEXT_ONLY|$DRIVE_TO_ENCRYPT"
 				fi
-				echo $DRIVES_TO_ENCRYPT_TEXT_ONLY
-				exit
-
 				CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
 				if [ "$DRIVES_TO_ENCRYPT" = "" ]; then
 					DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
