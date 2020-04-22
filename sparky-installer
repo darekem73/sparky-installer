@@ -1101,8 +1101,6 @@ automatic_partitioning() {
 partitioner() {
 	LVM=0
 	CRYPT=0
-	echo "Enter partitioner"
-	exit
 
 	if [ "$PARTDRIVE" = "Exit" ]; then
 		exit 1
@@ -1125,7 +1123,7 @@ partitioner() {
 	#	partschemamenu="$partschemamenu $f ${PART_SCHEMAS[$f]}"
 	#done
 
-	partschemamenu=( Manual "Manual partitioning" "${partschemamenu[@]}" )
+	partschemamenu=( Manual "Manual partitioning" "${PART_SCHEMAS[@]}" )
 	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select partitioning schema" $HEIGHT $WIDTH $MENUHEIGHT "$partschemamenu" 2>$CHOICE_FILE
 	if [ "$?" = "0" ]; then
 		PARTSCHEMA=`cat $CHOICE_FILE`
