@@ -11,7 +11,8 @@
 # Last update 2020/04/19 by pavroo
 # Auto-partitioning added by darekem73 2020/04/20
 # TODO: function to pretty print mountpoint list
-#
+# TODO: root encryption without separate boot partition
+# 
 # This script requires either yad or dialog to run
 
 # checking to make sure script is running with root privileges
@@ -240,9 +241,9 @@ else
 fi
 
 if [ "$TESTEFI" != "" ]; then
-	PARTITIONTEXT="$LOCAL9\n\n$PARTITIONPROG $LOCAL10\n\n$LOCAL11\n\n$LOCAL12\n\n$LOCAL13 $PARTITIONPROG $LOCAL14\n\n$LOCAL15"
+	PARTITIONTEXT="$LOCAL9\n\n$PARTITIONPROG $LOCAL10\n\n$LOCAL11 If you want to encrypt root partition prepare a 500M boot partition that will remain unencrypted.\n\n$LOCAL12\n\n$LOCAL13 $PARTITIONPROG $LOCAL14\n\n$LOCAL15"
 else
-	PARTITIONTEXT="$LOCAL9\n\n$PARTITIONPROG $LOCAL10\n\n$LOCAL11\n\n$LOCAL13 $PARTITIONPROG $LOCAL14\n\n$LOCAL15"
+	PARTITIONTEXT="$LOCAL9\n\n$PARTITIONPROG $LOCAL10\n\n$LOCAL11 If you want to encrypt root partition prepare a 500M boot partition that will remain unencrypted.\n\n$LOCAL13 $PARTITIONPROG $LOCAL14\n\n$LOCAL15"
 fi
 
 progressbar () {
@@ -446,10 +447,43 @@ gather_part_data() {
 					HFSTABOPT="subvol=@home,defaults,noatime,space_cache,autodefrag" # needed for subvolume fstab entry
 					;;
 			esac
-			DUMP_PASS="0	1"
-			ROOTFSTYPE=$FSTYPE #needed for final message
-			TARGETPART=$PARTTOMOUNT #needed below for GRUB installation
-			# TODO: add option to encrypt root (no LVM); /boot partition then needed! swap to be removed then (sed!)
+			ENCRYPT_ROOT=0
+			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
+			if [ $? -eq 0 ]; then
+				ENCRYPT_ROOT=1
+			fi
+			if [ $ENCRYPT_ROOT -eq 1 ]; then
+				DRIVE_TO_ENCRYPT="$PARTTOMOUNT"
+				get_password "$DRIVE_TO_ENCRYPT encryption"
+				DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
+				if [ "$DRIVES_TO_ENCRYPT_TEXT_ONLY" = "" ]; then
+					DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+				else
+					DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVES_TO_ENCRYPT_TEXT_ONLY|$DRIVE_TO_ENCRYPT"
+				fi
+				CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+				if [ "$DRIVES_TO_ENCRYPT" = "" ]; then
+					DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+				else
+					DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+				fi
+				CRYPT=1
+        			EXCLUDED_PARTS="$EXCLUDED_PARTS|$DRIVE_TO_ENCRYPT"
+				PARTTOMOUNT="/dev/mapper/$CRYPT_DRIVE_MAPPED"
+				DUMP_PASS="0	1"
+				ROOTFSTYPE=$FSTYPE #needed for final message
+				TARGETPART=$PARTTOMOUNT #needed below for GRUB installation
+				# change the next swap partition to boot
+        			index=0
+			        while [ "${MANDATORY_PARTS[$index]}" != "swap" ] && [ $index -lt "${#MANDATORY_PARTS[@]}" ]; do ((index++)); done
+			        if [ $index -lt "${#MANDATORY_PARTS[@]}" ]; then
+			                MANDATORY_PARTS[$index]="boot"
+			        fi
+			else
+				DUMP_PASS="0	1"
+				ROOTFSTYPE=$FSTYPE #needed for final message
+				TARGETPART=$PARTTOMOUNT #needed below for GRUB installation
+			fi
 			;;
 		"swap")
 			if [ "$PARTTOMOUNT" = "Exit" ]; then
@@ -464,7 +498,6 @@ gather_part_data() {
 				status=0
 			fi
 			SWAP=$PARTTOMOUNT #for logging
-			# TODO: remove option to use swap if encrypting root
 			;;
 		"home")
 			MOUNTPOINT="/home"
@@ -488,8 +521,8 @@ gather_part_data() {
 					HFSTABOPT="defaults,noatime,space_cache,autodefrag" #will overwrite HFSTAB from root FS entry; to be used only if btrfs and HOMEPART=Exit
 					;;
 			esac
-			if [ "$FSTYPE" != "noformat" ]; then
-				ENCRYPT_HOME=0
+			ENCRYPT_HOME=0
+			if [[ "$FSTYPE" != "noformat" && "$PARTTOMOUNT" != "Exit" ]]; then
 				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
 				if [ $? -eq 0 ]; then
 					ENCRYPT_HOME=1
@@ -522,11 +555,22 @@ gather_part_data() {
 				HOMEPART=$PARTTOMOUNT # Exit=home_on_root or @home subvolume needs to be created, other options n/a; needed below for final message
 			fi
 			;;
+		"boot")
+			# only due to encryption this becomes mandatory, which means no swap
+			FSTYPE="ext4"
+			MOUNTPOINT="/boot"
+			if [ "$PARTTOMOUNT" = "Exit" ]; then
+				status=1
+			else
+				FSTABOPT="defaults"
+				DUMP_PASS="0	2"
+				status=0
+			fi
+			;;
 		"other")
 			MOUNTPOINT=""
 			FSTYPE=""
 			if [ "$PARTTOMOUNT" = "Exit" ]; then
-				PARTTOMOUNT="Exit"
 				status=0
 			else
 				ask_for_mountpoint $PARTTOMOUNT
