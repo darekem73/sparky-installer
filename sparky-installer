@@ -1107,7 +1107,7 @@ partitioner() {
 	fi
 	unset PART_SCHEMAS
 	declare -a PART_SCHEMAS
-	PART_SCHEMAS[0]="Home on root no swap"
+	PART_SCHEMAS[0]="Home_on_root_no_swap"
 	PART_SCHEMAS[1]="Home_on_root+swap"
 	PART_SCHEMAS[2]="Separate_home+swap"
 	PART_SCHEMAS[3]="LVM_home_on_root+swap"
@@ -1118,15 +1118,12 @@ partitioner() {
 	PART_SCHEMAS[8]="Encrypted_LVM_separate_home+swap"
 	PART_SCHEMAS[9]="Encrypted_LVM_hybrid-two_PVs_separate_home"
 
-	#partschemamenu=""
-	#for f in ${!PART_SCHEMAS[@]}; do
-	#	partschemamenu="$partschemamenu $f ${PART_SCHEMAS[$f]}"
-	#done
+	partschemamenu=""
+	for f in ${!PART_SCHEMAS[@]}; do
+		partschemamenu="$partschemamenu $f ${PART_SCHEMAS[$f]}"
+	done
 
-	partschemamenu=( Manual "Manual partitioning" "${PART_SCHEMAS[@]}" )
-	echo $partschemamenu
-	exit
-	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select partitioning schema" $HEIGHT $WIDTH $MENUHEIGHT "$partschemamenu" 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select partitioning schema" $HEIGHT $WIDTH $MENUHEIGHT Manual "Manual partitioning" $partschemamenu 2>$CHOICE_FILE
 	if [ "$?" = "0" ]; then
 		PARTSCHEMA=`cat $CHOICE_FILE`
 	else
