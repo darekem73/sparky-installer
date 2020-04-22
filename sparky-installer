@@ -1098,6 +1098,8 @@ automatic_partitioning() {
 }
 
 partitioner() {
+	LVM=0
+	CRYPT=0
 
 	if [ "$PARTDRIVE" = "Exit" ]; then
 		exit 1
