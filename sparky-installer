@@ -1108,16 +1108,16 @@ partitioner() {
 
 	unset PART_SCHEMAS
 	declare -a PART_SCHEMAS
-	PART_SCHEMAS[0]="Homer on root no swap"
-	PART_SCHEMAS[1]="Home_on_root+swap"
-	PART_SCHEMAS[2]="Separate_home+swap"
-	PART_SCHEMAS[3]="LVM_home_on_root+swap"
-	PART_SCHEMAS[4]="LVM_separate_home+swap"
-	PART_SCHEMAS[5]="Encrypted_home_on_root_no_swap"
-	PART_SCHEMAS[6]="Encrypted_separate_home_no_swap"
-	PART_SCHEMAS[7]="Encrypted_LVM_home_on_root+swap"
-	PART_SCHEMAS[8]="Encrypted_LVM_separate_home+swap"
-	PART_SCHEMAS[9]="Encrypted_LVM_hybrid-two_PVs_separate_home"
+	PART_SCHEMAS[0]="Homer on root, no swap"
+	PART_SCHEMAS[1]="Home on root, swap"
+	PART_SCHEMAS[2]="Separate home, swap"
+	PART_SCHEMAS[3]="LVM, home on root, swap"
+	PART_SCHEMAS[4]="LVM, separate home, swap"
+	PART_SCHEMAS[5]="Encrypted, home on root, no swap"
+	PART_SCHEMAS[6]="Encrypted, separate home, no swap"
+	PART_SCHEMAS[7]="Encrypted LVM, home on root, swap"
+	PART_SCHEMAS[8]="Encrypted LVM, separate home, swap"
+	PART_SCHEMAS[9]="Encrypted LVM, hybrid: two PVs, separate home, swap"
 
 	partschemamenu=()
 	for f in ${!PART_SCHEMAS[@]}; do
