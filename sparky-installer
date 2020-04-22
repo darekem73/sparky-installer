@@ -11,7 +11,8 @@
 # Last update 2020/04/19 by pavroo
 # Auto-partitioning added by darekem73 2020/04/20
 # TODO: root encryption without separate boot partition
-# 
+# TODO: install to open encrypted drives (+create CRYPTTAB)
+# TODO: open and mount encrypted partitions (+create CRYPTTAB)
 # This script requires either yad or dialog to run
 
 # checking to make sure script is running with root privileges
