@@ -448,7 +448,7 @@ gather_part_data() {
 			DUMP_PASS="0	1"
 			ROOTFSTYPE=$FSTYPE #needed for final message
 			TARGETPART=$PARTTOMOUNT #needed below for GRUB installation
-			# TODO: add option to encrypt root (no LVM)
+			# TODO: add option to encrypt root (no LVM); /boot partition then needed! swap to be removed then (sed!)
 			;;
 		"swap")
 			if [ "$PARTTOMOUNT" = "Exit" ]; then
@@ -487,10 +487,34 @@ gather_part_data() {
 					HFSTABOPT="defaults,noatime,space_cache,autodefrag" #will overwrite HFSTAB from root FS entry; to be used only if btrfs and HOMEPART=Exit
 					;;
 			esac
-			DUMP_PASS="0	2"
-			HFSTYPE=$FSTYPE #needed below for choosing folders for rsync if noformat and for final message
-			HOMEPART=$PARTTOMOUNT # Exit=home_on_root or @home subvolume needs to be created, other options n/a; needed below for final message
-			# TODO: add option to encrypt home (no LVM)
+			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt partition?\n$PART_TO_MOUNT" $HEIGHT $WIDTH
+			if [ $? -eq 0 ]; then
+				# TODO: add option to encrypt home
+
+				DRIVE_TO_ENCRYPT="$PART_TO_MOUNT"
+				get_password "$DRIVE_TO_ENCRYPT encryption"
+				DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
+				if [ "$DRIVES_TO_ENCRYPT_TEXT_ONLY" = "" ]; then
+					DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+				else
+					DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVES_TO_ENCRYPT_TEXT_ONLY|$DRIVE_TO_ENCRYPT"
+				fi
+				CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+				if [ "$DRIVES_TO_ENCRYPT" = "" ]; then
+					DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+				else
+					DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+				fi
+				CRYPT=1
+				PARTTOMOUNT="/dev/mapper/$CRYPT_DRIVE_MAPPED"
+				DUMP_PASS="0	2"
+				HFSTYPE="ext4" #needed below final message
+				HOMEPART="$PARTTOMOUNT" # needed below for final message
+			else
+				DUMP_PASS="0	2"
+				HFSTYPE=$FSTYPE #needed below for choosing folders for rsync if noformat and for final message
+				HOMEPART=$PARTTOMOUNT # Exit=home_on_root or @home subvolume needs to be created, other options n/a; needed below for final message
+			fi
 			;;
 		"other")
 			MOUNTPOINT=""
@@ -526,8 +550,11 @@ store_parts() {
 
 select_mount_points() {
 	# mount mandatory partitions
+	CRYPT=0
 	PARTTOMOUNT=""
-	for part in $MANDATORY_PARTS; do
+	for p in `seq 1 ${#MANDATORY_PARTS[@]}`; do
+		(( i=p-1 ))
+		part=${MANDATORY_PARTS[$i]}
 		gather_part_data $part
 		if [ $? -eq 0 ]; then
 			# home on root = Exit, don't mount separate partition
@@ -622,6 +649,42 @@ create_partitions() {
 	#autopartition device
 	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
 	rm $CHOICE_FILE
+}
+
+encrypt_drives() {
+	# DRIVES_TO_ENCRYPT and DRIVES_TO_ENCRYPT_TEXT_ONLY must be set
+	if [ "$DRIVES_TO_ENCRYPT" == "" ]; then
+		echo "DRIVES_TO_ENCRYPT must be set"
+		exit 1
+	fi
+	$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt $DRIVES_TO_ENCRYPT_TEXT_ONLY?\nIt can take several seconds so don't panick!" $HEIGHT $WIDTH
+	if [ $? != 0 ]; then
+		exit 1
+	fi
+
+	# closing open crypt volumes
+	for f in $(lsblk -l -p | grep crypt | awk '{ print $1 }'); do
+		cryptsetup close $f
+	done
+
+	CRYPTTAB=""
+	NF=$(echo $DRIVES_TO_ENCRYPT | awk -F"|" '{print NF}')
+	for i in `seq $NF`; do
+		CMD=$(echo $DRIVES_TO_ENCRYPT | cut -d "|" -f $i)
+		PART=$(echo $CMD | cut -d: -f1)
+		PASS=$(echo $CMD | cut -d: -f2)
+		MAPPED=$(echo $CMD | cut -d: -f3)
+		echo $PASS | cryptsetup luksFormat --type luks2 -l ${#PASS} -q -d - $PART
+		sleep 2
+		echo $PASS | cryptsetup luksOpen $PART $MAPPED -l ${#PASS} -d -
+		sleep 2
+		UUID=$(blkid -o value -s UUID $PART)
+		if [ "$CRYPTTAB" = "" ]; then
+			CRYPTTAB="$MAPPED:$UUID:none	luks,discard" 
+		else
+			CRYPTTAB="$CRYPTTAB|$MAPPED:$UUID:none	luks,discard,initramfs" 
+		fi
+	done
 }
 
 automatic_partitioning() {
@@ -889,37 +952,9 @@ automatic_partitioning() {
 	fi
 	create_partitions
 
-	# TODO: create separate function (?)
 	# encrypt and mount drive(s)
 	if [ $CRYPT -eq 1 ]; then
-		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt $DRIVES_TO_ENCRYPT_TEXT_ONLY?\nIt can take several seconds so don't panick!" $HEIGHT $WIDTH
-		if [ $? != 0 ]; then
-			exit 1
-		fi
-
-		# closing open crypt volumes
-		for f in $(lsblk -l -p | grep crypt | awk '{ print $1 }'); do
-			cryptsetup close $f
-		done
-
-		CRYPTTAB=""
-		NF=$(echo $DRIVES_TO_ENCRYPT | awk -F"|" '{print NF}')
-		for i in `seq $NF`; do
-			CMD=$(echo $DRIVES_TO_ENCRYPT | cut -d "|" -f $i)
-			PART=$(echo $CMD | cut -d: -f1)
-			PASS=$(echo $CMD | cut -d: -f2)
-			MAPPED=$(echo $CMD | cut -d: -f3)
-			echo $PASS | cryptsetup luksFormat --type luks2 -l ${#PASS} -q -d - $PART
-			sleep 2
-			echo $PASS | cryptsetup luksOpen $PART $MAPPED -l ${#PASS} -d -
-			sleep 2
-			UUID=$(blkid -o value -s UUID $PART)
-			if [ "$CRYPTTAB" = "" ]; then
-				CRYPTTAB="$MAPPED:$UUID:none	luks,discard" 
-			else
-				CRYPTTAB="$CRYPTTAB|$MAPPED:$UUID:none	luks,discard,initramfs" 
-			fi
-		done
+		encrypt_drives
 	fi
 	
 	# create LVM
@@ -1020,15 +1055,19 @@ partitioner() {
 		EXCLUDED_PARTS="loop|sr0|disk"
 		
 		if [ "$TESTEFI" != "" ]; then
-			MANDATORY_PARTS="efi"
+			MANDATORY_PARTS=( efi )
 		else
-			MANDATORY_PARTS=""
+			MANDATORY_PARTS=()
 		fi
 		
-		MANDATORY_PARTS="$MANDATORY_PARTS root swap home"
+		MANDATORY_PARTS=( ${MANDATORY_PARTS[@]} root swap home )
 
 		select_mount_points
+		
 		# TODO: if asking for encrypting root or home - add encrypting drives here; add FSTAB and CRYPTTAB creation here
+		if [ $CRYPT -eq 1 ]; then
+			encrypt_drives
+		fi
 	else
 		# delete LVM if present, before partitioning
 		clear_lvm
