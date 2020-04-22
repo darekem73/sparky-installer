@@ -1105,6 +1105,7 @@ partitioner() {
 	if [ "$PARTDRIVE" = "Exit" ]; then
 		exit 1
 	fi
+
 	unset PART_SCHEMAS
 	declare -a PART_SCHEMAS
 	PART_SCHEMAS[0]="Homer on root no swap"
@@ -1122,6 +1123,9 @@ partitioner() {
 	for f in ${!PART_SCHEMAS[@]}; do
 		partschemamenu=( "${partschemamenu[@]}" "$f" "${PART_SCHEMAS[$f]}" )
 	done
+	
+	echo ${partschemamenu[@]}
+	exit
 
 	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select partitioning schema" $HEIGHT $WIDTH $MENUHEIGHT Manual "Manual partitioning" $partschemamenu 2>$CHOICE_FILE
 	if [ "$?" = "0" ]; then
