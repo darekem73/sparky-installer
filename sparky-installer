@@ -504,6 +504,9 @@ gather_part_data() {
 				else
 					DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVES_TO_ENCRYPT_TEXT_ONLY|$DRIVE_TO_ENCRYPT"
 				fi
+				echo $DRIVES_TO_ENCRYPT_TEXT_ONLY
+				exit
+
 				CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
 				if [ "$DRIVES_TO_ENCRYPT" = "" ]; then
 					DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
