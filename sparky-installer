@@ -353,7 +353,6 @@ ask_for_part() {
 	done
 	
 	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select partition for $TYPE" $HEIGHT $WIDTH $MENUHEIGHT Exit "Exit" $partmenu 2>$CHOICE_FILE
-	
 	if [ "$?" = "0" ]; then
 		PARTTOMOUNT=`cat $CHOICE_FILE`
 		PARTTOMOUNT="$PARTTOMOUNT"
@@ -374,7 +373,6 @@ ask_for_mountpoint() {
 		echo "Error in mountpoint"
                 exit 1
         fi
-
         rm $CHOICE_FILE
 }
 
@@ -386,13 +384,11 @@ ask_for_filesystem() {
 		NOFORMAT=""
 	fi
 	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select filesystem for $LOCATION" $HEIGHT $WIDTH $MENUHEIGHT $NOFORMAT ext4 "ext4" ext3 "ext3" ext2 "ext2" btrfs "Btrfs" xfs "Xfs" 2>$CHOICE_FILE
-	
 	if [ "$?" = "0" ]; then
 		FSTYPE=`cat $CHOICE_FILE`
 	else
 	        FSTYPE="ext4"
 	fi
-	
 	rm $CHOICE_FILE
 }
 
@@ -635,18 +631,21 @@ select_mount_points() {
 	done
 	
 	# mount any other partitions
-	PARTTOMOUNT=""
-	while [ "$PARTTOMOUNT" != "Exit" ]; do
-	
-		gather_part_data "other"
-	
-		if [ "$PARTTOMOUNT" != "Exit" ]; then
-			store_parts
-		else
-			break
-		fi
-	
-	done
+	$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to mount other partitions?" $HEIGHT $WIDTH
+	if [ $? = 0 ]; then
+		PARTTOMOUNT=""
+		while [ "$PARTTOMOUNT" != "Exit" ]; do
+		
+			gather_part_data "other"
+		
+			if [ "$PARTTOMOUNT" != "Exit" ]; then
+				store_parts
+			else
+				break
+			fi
+		
+		done
+	fi
 }
 
 calc_root_size() {
