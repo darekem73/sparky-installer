@@ -1030,7 +1030,8 @@ automatic_partitioning() {
 			;;
 	esac
 
-	$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Create partitions?\n$PARTS_TO_CREATE\non $PARTDRIVE" $HEIGHT $WIDTH
+	parts_to_create_to_text
+	$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Create partitions?\n$PARTS_TO_CREATE_TEXT\non $PARTDRIVE" $HEIGHT $WIDTH
 	if [ $? != 0 ]; then
 		exit 1
 	fi
