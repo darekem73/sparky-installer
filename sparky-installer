@@ -1135,6 +1135,10 @@ partitioner() {
 	if [ "$PARTSCHEMA" == "Exit" ]; then
 		exit 1
 	fi
+	if [[ ! "$PARTSCHEMA" in ${!PART_SCHEMAS[@]} ]]; then
+		exit 1
+	fi
+
 	if [ "$PARTSCHEMA" = "Manual" ]; then
 		#manual partitioning
 		PARTITIONING_DONE=0
