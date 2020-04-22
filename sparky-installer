@@ -1105,7 +1105,8 @@ partitioner() {
 	if [ "$PARTDRIVE" = "Exit" ]; then
 		exit 1
 	fi
-	PART_SCHEMAS=()
+	unset PART_SCHEMAS
+	declare -a PART_SCHEMAS
 	PART_SCHEMAS[0]="Home on root no swap"
 	PART_SCHEMAS[1]="Home_on_root+swap"
 	PART_SCHEMAS[2]="Separate_home+swap"
