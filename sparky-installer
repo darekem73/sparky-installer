@@ -1125,7 +1125,7 @@ partitioner() {
 	done
 	
 	partschemamenu=( "Manual" "Manual partitioning" "${partschemamenu[@]}" )
-	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select partitioning schema" $HEIGHT $WIDTH $MENUHEIGHT "${$partschemamenu[@]}" 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select partitioning schema" $HEIGHT $WIDTH $MENUHEIGHT "${partschemamenu[@]}" 2>$CHOICE_FILE
 	if [ "$?" = "0" ]; then
 		PARTSCHEMA=`cat $CHOICE_FILE`
 	else
@@ -1133,9 +1133,6 @@ partitioner() {
 	fi
 		
 	if [ "$PARTSCHEMA" == "Exit" ]; then
-		exit 1
-	fi
-	if [[ ! "$PARTSCHEMA" in ${!PART_SCHEMAS[@]} ]]; then
 		exit 1
 	fi
 
