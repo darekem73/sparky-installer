@@ -499,6 +499,7 @@ gather_part_data() {
 				DRIVE_TO_ENCRYPT="$PART_TO_MOUNT"
 				get_password "$DRIVE_TO_ENCRYPT encryption"
 				DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
+				echo $DRIVE_TO_ENCRYPT
 				if [ "$DRIVES_TO_ENCRYPT_TEXT_ONLY" = "" ]; then
 					DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
 				else
