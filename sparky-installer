@@ -794,15 +794,17 @@ parts_to_create_to_text() {
 
 encrypt_drives() {
 	# DRIVES_TO_ENCRYPT and DRIVES_TO_ENCRYPT_TEXT_ONLY must be set
-	FORMAT=0
-	if [ "$1" = "format" ]; then
-		FORMAT=1
-	fi
 	if [ "$DRIVES_TO_ENCRYPT" == "" ]; then
 		echo "DRIVES_TO_ENCRYPT must be set"
 		exit 1
 	fi
-	$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt $DRIVES_TO_ENCRYPT_TEXT_ONLY?\nIt can take several seconds so don't panick!" $HEIGHT $WIDTH
+	FORMAT=0
+	if [ "$1" = "format" ]; then
+		FORMAT=1
+		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt $DRIVES_TO_ENCRYPT_TEXT_ONLY?\nIt can take several seconds so don't panick!" $HEIGHT $WIDTH
+	else
+		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Open $DRIVES_TO_ENCRYPT_TEXT_ONLY?\nIt can take several seconds so don't panick!" $HEIGHT $WIDTH
+	fi
 	if [ $? != 0 ]; then
 		exit 1
 	fi
