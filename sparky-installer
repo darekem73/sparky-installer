@@ -496,7 +496,7 @@ gather_part_data() {
 			esac
 			ENCRYPT_ROOT=0
 			# if encrypted drives opnen for installation - do not offer reencryption
-			if [ $ENCRYPTED_DRIVES_OPEN -eq 0]; then
+			if [ $ENCRYPTED_DRIVES_OPEN -eq 0 ]; then
 				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt root partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
 				if [ $? -eq 0 ]; then
 					ENCRYPT_ROOT=1
