@@ -1224,6 +1224,7 @@ partitioner() {
 		while [ $PARTITIONING_DONE -eq 0 ]; do
 			drive_to_part
 			$PARTITIONPROG $PARTDRIVE
+			sleep 2
 			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to partition another drive?" $HEIGHT $WIDTH
 			if [ $? != 0 ]; then
 				PARTITIONING_DONE=1
