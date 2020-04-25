@@ -11,8 +11,7 @@
 # Last update 2020/04/19 by pavroo
 # Auto-partitioning added by darekem73 2020/04/20
 # TODO: root encryption without separate boot partition
-# TODO: install to open encrypted drives (+create CRYPTTAB)
-# TODO: open and mount encrypted partitions (+create CRYPTTAB)
+
 # This script requires either yad or dialog to run
 
 # checking to make sure script is running with root privileges
@@ -38,6 +37,8 @@ DEFAULT_SWAP_SIZE_G=1
 MIN_PART_SIZE=5 # G
 MAX_PART_SIZE=30 # G
 ROOT_PART_RATIO=3 # 1/3 of target partition
+ENCRYPTED_DRIVES_OPEN=0
+CRYPTTAB=""
 
 # set options depending on mode - text or gui
 DIALOG="`which dialog`"
@@ -321,6 +322,43 @@ clear_lvm() {
 	fi
 }
 
+collect_encrypted_drives() {
+	DRIVES=`lsblk -l -p -o NAME,TYPE,FSTYPE | grep 'crypto_LUKS' | awk '{print $1}'`
+	if [ "$DRIVES" = "" ]; then
+		return 1
+	fi
+	ENCRYPTED_DRIVES=""
+	for i in $DRIVES; do
+		encrdrive="$i"
+		encrdrivesize=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$i" | awk '{print $2}'`
+		ENCRYPTED_DRIVES="$ENCRYPTED_DRIVES $encrdrive $encrdrivesize"
+	done
+	return 0
+}
+
+open_encrypted_drives() {
+	# ENCRYPTED_DRIVES must be set
+	if [ "$ENCRYPTED_DRIVES" == "" ]; then
+		echo "ENCRYPTED_DRIVES must be set"
+		exit 1
+	fi
+	ALL_OPEN=0
+	while [ $ALL_OPEN -eq 0 ]; do
+		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive to open" $HEIGHT $WIDTH $MENUHEIGHT Exit "Wyjscie" $ENCRYPTED_DRIVES 2>$CHOICE_FILE
+		if [ $? != 0 ]; then
+			ALL_DONE=1
+		fi
+	done
+	if [ "$?" = "0" ]; then
+		PARTDRIVE=`cat $CHOICE_FILE`
+		PARTDRIVESIZE=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$PARTDRIVE" | awk '{print $2}'`
+	else
+		PARTDRIVE="Exit"
+	fi
+	
+	rm $CHOICE_FILE
+}
+
 drive_to_part() {
 	DRIVES=`lsblk -l -p | grep 'disk' | awk '{print $1}'`
 	partdrivemenu=""
@@ -332,7 +370,7 @@ drive_to_part() {
 	
 	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive to partition" $HEIGHT $WIDTH $MENUHEIGHT Exit "Wyjscie" $partdrivemenu 2>$CHOICE_FILE
 	
-	if [ "$?" == "0" ]; then
+	if [ "$?" = "0" ]; then
 		PARTDRIVE=`cat $CHOICE_FILE`
 		PARTDRIVESIZE=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$PARTDRIVE" | awk '{print $2}'`
 	else
@@ -444,9 +482,12 @@ gather_part_data() {
 					;;
 			esac
 			ENCRYPT_ROOT=0
-			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt root partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
-			if [ $? -eq 0 ]; then
-				ENCRYPT_ROOT=1
+			# if encrypted drives opnen for installation - do not offer reencryption
+			if [ $ENCRYPTED_DRIVES_OPEN -eq 0]; then
+				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt root partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
+				if [ $? -eq 0 ]; then
+					ENCRYPT_ROOT=1
+				fi
 			fi
 			if [ $ENCRYPT_ROOT -eq 1 ]; then
 				DRIVE_TO_ENCRYPT="$PARTTOMOUNT"
@@ -518,10 +559,13 @@ gather_part_data() {
 					;;
 			esac
 			ENCRYPT_HOME=0
-			if [[ "$FSTYPE" != "noformat" && "$PARTTOMOUNT" != "Exit" ]]; then
-				$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt home partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
-				if [ $? -eq 0 ]; then
-					ENCRYPT_HOME=1
+			# if encrypted drives opnen for installation - do not offer reencryption
+			if [ $ENCRYPTED_DRIVES_OPEN -eq 0]; then
+				if [[ "$FSTYPE" != "noformat" && "$PARTTOMOUNT" != "Exit" ]]; then
+					$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Encrypt home partition?\n$PARTTOMOUNT" $HEIGHT $WIDTH
+					if [ $? -eq 0 ]; then
+						ENCRYPT_HOME=1
+					fi
 				fi
 			fi
 			if [ $ENCRYPT_HOME -eq 1 ]; then
@@ -726,7 +770,7 @@ parts_to_create_to_text() {
 		PART=$(echo $CMD | cut -d: -f1)
 		TYPE=$(echo $CMD | cut -d: -f2)
 		SIZE=$(echo $CMD | cut -d: -f3)
-		# TODO: if size "" - rest of disk
+		# TODO: size "" = "rest of disk"
 		if [ "$PARTS_TO_CREATE_TEXT" = "" ]; then
 			PARTS_TO_CREATE_TEXT="$PARTDRIVE$PART	$SIZE""b""	Type: $TYPE"
 		else
@@ -751,7 +795,7 @@ encrypt_drives() {
 		cryptsetup close $f
 	done
 
-	CRYPTTAB=""
+	#CRYPTTAB=""
 	NF=$(echo $DRIVES_TO_ENCRYPT | awk -F"|" '{print NF}')
 	for i in `seq $NF`; do
 		CMD=$(echo $DRIVES_TO_ENCRYPT | cut -d "|" -f $i)
@@ -1139,6 +1183,17 @@ partitioner() {
 
 	if [ "$PARTSCHEMA" = "Manual" ]; then
 		#manual partitioning
+		collect_encrypted_drives
+		if [ $? -eq 0 ]; then
+			# would you like to open encrypted drives and use them for installation YES/NO
+			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to open encrypted drives and install to them?" $HEIGHT $WIDTH
+			if [ $? -eq 0 ]; then
+				# YES - open drives, fill in CRYPTTAB (further reencryption of partitions NOT POSSIBLE)
+				open_encrypted_drives
+				ENCRYPTED_DRIVES_OPEN=1
+			fi
+			# NO - continue
+		fi
 		PARTITIONING_DONE=0
 		while [ $PARTITIONING_DONE -eq 0 ]; do
 			drive_to_part
@@ -2110,7 +2165,7 @@ FOO
 fi
 
 # generate crypttab if encrypted volumes
-if [ $CRYPT -eq 1 ]; then
+if [ $CRYPT -eq 1 ] || [ "$CRYPTTAB" != "" ]; then
 	generate_crypttab "/TARGET/etc/crypttab"
 fi
 
@@ -2136,7 +2191,7 @@ echo "INITRAMFS-RESUME:" >> /var/log/sparkylinux-installer.log
 cat /TARGET/etc/initramfs-tools/conf.d/resume >> /var/log/sparkylinux-installer.log
 echo "GENERATED FSTAB:" >> /var/log/sparkylinux-installer.log
 cat /TARGET/etc/fstab >> /var/log/sparkylinux-installer.log
-if [ $CRYPT -eq 1 ]; then
+if [ $CRYPT -eq 1 ] || [ "$CRYPTTAB" != "" ]; then
 	echo "GENERATED CRYPTTAB:" >> /var/log/sparkylinux-installer.log
 	cat /TARGET/etc/crypttab >> /var/log/sparkylinux-installer.log
 fi
@@ -2424,7 +2479,7 @@ apt-get purge --yes mc
 if [ $LVM -eq 0 ]; then
 	apt-get purge --yes lvm2
 fi
-if [ $CRYPT -eq 0 ]; then
+if [ $CRYPT -eq 0 ] && [ "$CRYPTTAB" = "" ]; then
 	apt-get purge --yes cryptsetup
 fi
 apt-get autoremove --yes
