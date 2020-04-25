@@ -336,7 +336,7 @@ collect_encrypted_drives() {
 	return 0
 }
 
-open_encrypted_drives() {
+collect_encryption_parameters() {
 	# ENCRYPTED_DRIVES must be set
 	if [ "$ENCRYPTED_DRIVES" == "" ]; then
 		echo "ENCRYPTED_DRIVES must be set"
@@ -373,6 +373,7 @@ open_encrypted_drives() {
 }
 
 drive_to_part() {
+	# TODO: if ENCRYPTED_DRIVES_OPEN=1 - remove drive from list
 	DRIVES=`lsblk -l -p | grep 'disk' | awk '{print $1}'`
 	partdrivemenu=""
 	for i in $DRIVES; do
@@ -382,7 +383,6 @@ drive_to_part() {
 	done
 	
 	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive to partition" $HEIGHT $WIDTH $MENUHEIGHT Exit "Wyjscie" $partdrivemenu 2>$CHOICE_FILE
-	
 	if [ "$?" = "0" ]; then
 		PARTDRIVE=`cat $CHOICE_FILE`
 		PARTDRIVESIZE=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$PARTDRIVE" | awk '{print $2}'`
@@ -1214,7 +1214,7 @@ partitioner() {
 			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to open encrypted drives and install to them?" $HEIGHT $WIDTH
 			if [ $? -eq 0 ]; then
 				# YES - open drives, fill in CRYPTTAB (further reencryption of partitions NOT POSSIBLE)
-				open_encrypted_drives
+				collect_encryption_parameters
 				encrypt_drives just_open
 				ENCRYPTED_DRIVES_OPEN=1
 			fi
@@ -1222,9 +1222,12 @@ partitioner() {
 		fi
 		PARTITIONING_DONE=0
 		while [ $PARTITIONING_DONE -eq 0 ]; do
+			# TODO: warning if drive has open encrypted partitions or remove drive from list
 			drive_to_part
-			$PARTITIONPROG $PARTDRIVE
-			sleep 2
+			if [ "$PARTDRIVE" != "Exit" ]; then
+				$PARTITIONPROG $PARTDRIVE
+				sleep 2
+			fi
 			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to partition another drive?" $HEIGHT $WIDTH
 			if [ $? != 0 ]; then
 				PARTITIONING_DONE=1
