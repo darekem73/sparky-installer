@@ -11,7 +11,7 @@
 # Last update 2020/04/19 by pavroo
 # Auto-partitioning added by darekem73 2020/04/20
 # TODO: root encryption without separate boot partition
-
+# TODO: fstab by partname (enables easy restore after formatting root partition)
 # This script requires either yad or dialog to run
 
 # checking to make sure script is running with root privileges
@@ -39,6 +39,7 @@ MAX_PART_SIZE=30 # G
 ROOT_PART_RATIO=3 # 1/3 of target partition
 ENCRYPTED_DRIVES_OPEN=0
 CRYPTTAB=""
+FSTAB_BY_UUID=1
 
 # set options depending on mode - text or gui
 DIALOG="`which dialog`"
@@ -373,8 +374,30 @@ collect_encryption_parameters() {
 }
 
 drive_to_part() {
-	# TODO: if ENCRYPTED_DRIVES_OPEN=1 - remove drive from list
-	DRIVES=`lsblk -l -p | grep 'disk' | awk '{print $1}'`
+	if [ $ENCRYPTED_DRIVES_OPEN -eq 1 ]; then
+		# if drive has open encrypted partitions - remove drive from list
+		if [ "$DRIVES_TO_ENCRYPT" = "" ]; then
+			echo "This should not happen. DRIVES_TO_ENCRYPT should be set if ENCRYPTED_DRIVES_OPEN set to 1."
+			exit 1
+		else
+			EXCLUSION_LIST=""
+			NF=$(echo $DRIVES_TO_ENCRYPT | awk -F"|" '{print NF}')
+			for i in `seq $NF`; do
+				CMD=$(echo $DRIVES_TO_ENCRYPT | cut -d "|" -f $i)
+				PART=$(echo $CMD | cut -d: -f1)
+				PASS=$(echo $CMD | cut -d: -f2)
+				MAPPED=$(echo $CMD | cut -d: -f3)
+				if [ "$EXCLUSION_LIST" = "" ]; then
+					EXCLUSION_LIST="$PART" 
+				else
+					EXCLUSION_LIST="$EXCLUSION_LIST|$PART" 
+				fi
+			done
+			DRIVES=`lsblk -l -p | grep 'disk' | egrep -v $EXCLUSION_LIST | awk '{print $1}'`
+		fi
+	else
+		DRIVES=`lsblk -l -p | grep 'disk' | awk '{print $1}'`
+	fi
 	partdrivemenu=""
 	for i in $DRIVES; do
 		partdrive="$i"
@@ -1222,7 +1245,6 @@ partitioner() {
 		fi
 		PARTITIONING_DONE=0
 		while [ $PARTITIONING_DONE -eq 0 ]; do
-			# TODO: warning if drive has open encrypted partitions or remove drive from list
 			drive_to_part
 			if [ "$PARTDRIVE" != "Exit" ]; then
 				$PARTITIONPROG $PARTDRIVE
@@ -1398,7 +1420,11 @@ generate_fstab() {
 		FSTABOPT=$(echo $CMD | cut -d: -f5)
 		DUMP_PASS=$(echo $CMD | cut -d: -f6)
 		echo "# $PART" >> $FSTAB_FILE
-		echo "UUID=$UUID	$MOUNT	$FS	$FSTABOPT	$DUMP_PASS" >> $FSTAB_FILE
+		if [ $FSTAB_BY_UUID -eq 1 ]; then
+			echo "UUID=$UUID	$MOUNT	$FS	$FSTABOPT	$DUMP_PASS" >> $FSTAB_FILE
+		else
+			echo "$PART	$MOUNT	$FS	$FSTABOPT	$DUMP_PASS" >> $FSTAB_FILE
+		fi
 	done
 	echo "# cdrom"
 	echo "$TARGETCDROM	/media/cdrom0	udf,iso9660	user,noauto,exec,utf8	0	0" >> $FSTAB_FILE
