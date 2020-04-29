@@ -1452,7 +1452,7 @@ GrubSelectText () {
 	GrubMenu=( "${GrubMenu[@]}" "root" "$LOCAL68" "rootmbr" "$LOCAL69" "nogrub" "$LOCAL70" )
 
 	#grub location
-	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL71\n" $HEIGHT (( $WIDTH+24 )) $MENUHEIGHT "${GrubMenu[@]}" 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"$LOCAL71\n" $HEIGHT $WIDTH $MENUHEIGHT "${GrubMenu[@]}" 2>$CHOICE_FILE
 	if [ "$?" = "0" ]; then
 		GRUBLOCTEST=`cat $CHOICE_FILE`
 	fi
