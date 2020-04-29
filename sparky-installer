@@ -346,6 +346,7 @@ collect_encryption_parameters() {
 	fi
 	ALL_OPEN=0
 	while [ $ALL_OPEN -eq 0 ]; do
+		# TODO: remove drives from the list if parameters collected
 		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive to open" $HEIGHT $WIDTH $MENUHEIGHT Exit "Wyjscie" $ENCRYPTED_DRIVES 2>$CHOICE_FILE
 		if [ $? -eq 0 ]; then
 			OPENDRIVE=`cat $CHOICE_FILE`
@@ -389,9 +390,9 @@ drive_to_part() {
 				PASS=$(echo $CMD | cut -d: -f2)
 				MAPPED=$(echo $CMD | cut -d: -f3)
 				if [ "$EXCLUSION_LIST" = "" ]; then
-					EXCLUSION_LIST="$PART" 
+					EXCLUSION_LIST="${PART%?}" 
 				else
-					EXCLUSION_LIST="$EXCLUSION_LIST|$PART" 
+					EXCLUSION_LIST="$EXCLUSION_LIST|${PART%?}" 
 				fi
 			done
 			DRIVES=`lsblk -l -p | grep 'disk' | egrep -v $EXCLUSION_LIST | awk '{print $1}'`
