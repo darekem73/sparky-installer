@@ -40,6 +40,7 @@ ENCRYPTED_DRIVES_OPEN=0
 CRYPTTAB=""
 # fstab by partname (enables easy restore after formatting root partition)
 FSTAB_BY_UUID=0
+LUKS_TYPE="luks2" #luks1 if no /boot
 
 # set options depending on mode - text or gui
 DIALOG="`which dialog`"
