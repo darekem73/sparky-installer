@@ -797,6 +797,7 @@ create_partitions() {
 
 	#autopartition device
 	cat $CHOICE_FILE | $AUTOPARTITIONPROGRAM $PARTDRIVE
+	sleep 2
 	rm $CHOICE_FILE
 }
 
