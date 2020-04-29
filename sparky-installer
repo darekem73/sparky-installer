@@ -851,7 +851,7 @@ encrypt_drives() {
 		PASS=$(echo $CMD | cut -d: -f2)
 		MAPPED=$(echo $CMD | cut -d: -f3)
 		if [ $FORMAT -eq 1 ]; then
-			echo $PASS | cryptsetup luksFormat --type luks2 -l ${#PASS} -q -d - $PART
+			echo $PASS | cryptsetup luksFormat --type $LUKS_TYPE -l ${#PASS} -q -d - $PART
 			sleep 2
 		fi
 		echo $PASS | cryptsetup luksOpen $PART $MAPPED -l ${#PASS} -d -
