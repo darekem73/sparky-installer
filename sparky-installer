@@ -40,7 +40,7 @@ ENCRYPTED_DRIVES_OPEN=0
 CRYPTTAB=""
 # fstab by partname (enables easy restore after formatting root partition)
 FSTAB_BY_UUID=0
-LUKS_TYPE="luks1" #luks1 if no /boot
+LUKS_TYPE="luks2" #luks1 if no /boot+generate new keyslot to avoid asking for password (for each encrypted drive) and add keys to initramfs
 
 # set options depending on mode - text or gui
 DIALOG="`which dialog`"
@@ -1213,7 +1213,7 @@ partitioner() {
 	PART_SCHEMAS[7]="Encrypted LVM, home on root, swap"
 	PART_SCHEMAS[8]="Encrypted LVM, separate home, swap"
 	PART_SCHEMAS[9]="Encrypted LVM, hybrid: two PVs, separate home, swap"
-
+	
 	partschemamenu=()
 	for f in ${!PART_SCHEMAS[@]}; do
 		partschemamenu=( "${partschemamenu[@]}" "$f" "${PART_SCHEMAS[$f]}" )
