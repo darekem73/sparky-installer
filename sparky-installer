@@ -11,7 +11,6 @@
 # Last update 2020/04/19 by pavroo
 # Auto-partitioning added by darekem73 2020/04/20
 # TODO: root encryption without separate boot partition
-# TODO: don't remove lvm2 if manual installation
 #
 # This script requires either yad or dialog to run
 
@@ -323,6 +322,17 @@ clear_lvm() {
 		for f in $LIST_OF_PVS; do
 			yes | pvremove $f
 		done
+	fi
+}
+
+check_lvm() {
+	LIST_OF_VGS=$(vgs | sed 1D | awk '{printf "%s ", $1}')
+	LIST_OF_PVS=$(pvs | sed 1D | awk '{printf "%s ", $1}')
+	LIST_OF_LVS=$(lvs | sed 1D | awk '{printf "%s ", $1}')
+	if [ "$LIST_OF_VGS" != "" ]; then
+		return 1
+	else
+		return 0
 	fi
 }
 
@@ -2521,6 +2531,10 @@ fi
 
 echo "$LOCAL109 ... $LOCAL92 ..."
 
+# do not remove lvm if lvm is defined
+check_lvm
+LVM_ACTIVE=$?
+
 cat > /TARGET/bin/tempinstallerscript <<FOO
 #!/bin/bash
 
@@ -2537,7 +2551,7 @@ apt-get purge --yes live-*
 apt-get purge --yes gparted
 apt-get purge --yes calamares
 apt-get purge --yes mc
-if [ $LVM -eq 0 ]; then
+if [ $LVM -eq 0 ] && [ $LVM_ACTIVE -eq 0 ]; then
 	apt-get purge --yes lvm2
 fi
 if [ $CRYPT -eq 0 ] && [ "$CRYPTTAB" = "" ]; then
