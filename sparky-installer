@@ -893,10 +893,12 @@ automatic_partitioning() {
 					if [ "$TESTEFI" != "" ]; then
 						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20: "
 						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1"
+						ROOTFSTYPE="ext4" #needed for final message
 						TARGETPART=$PARTDRIVE""2 # needed below for GRUB installation
 					else
 						PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE"
 						PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1"
+						ROOTFSTYPE="ext4" #needed for final message
 						TARGETPART=$PARTDRIVE""1 # needed below for GRUB installation
 						#part1 bootable
 					fi
@@ -910,10 +912,12 @@ automatic_partitioning() {
 					if [ "$TESTEFI" != "" ]; then
 						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$ROOT_PART_SIZE|3:19: "
 						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""3:none:swap:sw:0 0"
+						ROOTFSTYPE="ext4" #needed for final message
 						TARGETPART=$PARTDRIVE""2 # needed below for GRUB installation
 					else
 						PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE|2:19: "
 						PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""2:none:swap:sw:0 0"
+						ROOTFSTYPE="ext4" #needed for final message
 						TARGETPART=$PARTDRIVE""1 # needed below for GRUB installation
 						#part1 bootable
 					fi
@@ -1147,6 +1151,7 @@ automatic_partitioning() {
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
 						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
 						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+						ROOTFSTYPE="ext4" #needed for final message
 						TARGETPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for GRUB installation
 					else
 						PARTS_TO_CREATE="1:20: "
@@ -1157,6 +1162,7 @@ automatic_partitioning() {
 						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
 						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
 						PARTS_TO_MOUNT="/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+						ROOTFSTYPE="ext4" #needed for final message
 						TARGETPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for GRUB installation
 						#part1 bootable
 					fi
