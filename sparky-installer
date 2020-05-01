@@ -11,7 +11,7 @@
 # Last update 2020/04/19 by pavroo
 # Auto-partitioning added by darekem73 2020/04/20
 # TODO: root encryption without separate boot partition
-#
+# TODO: add partitions with open crypto disks to excluded partitions
 # This script requires either yad or dialog to run
 
 # checking to make sure script is running with root privileges
@@ -42,6 +42,7 @@ CRYPTTAB=""
 # fstab by partname (enables easy restore after formatting root partition)
 FSTAB_BY_UUID=0
 LUKS_TYPE="luks2" #luks1 if no /boot+generate new keyslot to avoid asking for password (for each encrypted drive) and add keys to initramfs
+NO_BOOT_PART=0 #/boot partition manadatory for encryption unless "10" EXPERIMENTAL is chosen
 
 # set options depending on mode - text or gui
 DIALOG="`which dialog`"
@@ -962,7 +963,7 @@ automatic_partitioning() {
 					;;
 			esac
 			;;
-		"5"|"6"|"7"|"8"|"9") # with encryption
+		"5"|"6"|"7"|"8"|"9"|"10") # with encryption
 			CRYPT=1
 			if [ "$TESTEFI" != "" ]; then
 				(( EFIPARTSIZE=$DEFAULT_EFIPARTSIZE*$M ))
@@ -1133,6 +1134,33 @@ automatic_partitioning() {
 						#part1 bootable
 					fi
 					;;
+				"10") #EXPERIMENTAL: encrypted home on root, no swap, no /boot
+					LVM=0
+					NO_BOOT_PART=1 #with encryption it means adding GRUB_ENABLE_CRYPTODISK=y and chnging to LUKS1
+					LUKS_TYPE="luks1"
+					if [ "$TESTEFI" != "" ]; then
+						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20: "
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""2"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
+						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+						TARGETPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for GRUB installation
+					else
+						PARTS_TO_CREATE="1:20: "
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""1"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
+						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+						TARGETPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for GRUB installation
+						#part1 bootable
+					fi
+					;;
 			esac
 			;;
 	esac
@@ -1226,6 +1254,7 @@ partitioner() {
 	PART_SCHEMAS[7]="Encrypted LVM, home on root, swap"
 	PART_SCHEMAS[8]="Encrypted LVM, separate home, swap"
 	PART_SCHEMAS[9]="Encrypted LVM, hybrid: two PVs, separate home, swap"
+	PART_SCHEMAS[10]="EXPERIMENTAL: encrypted home on root, no swap, no /boot"
 	
 	partschemamenu=()
 	for f in ${!PART_SCHEMAS[@]}; do
@@ -2522,6 +2551,10 @@ if [ "$SETDELAY" != "" ]; then
 	else
 		sed -i -e "s/GRUB_TIMEOUT=5/GRUB_TIMEOUT=$SETDELAY/g" /TARGET/etc/default/grub
 	fi
+fi
+
+if [ $NO_BOOT_PART -eq 1 ] && { [ $CRYPT -eq 1 ] || [ "$CRYPTTAB" != "" ]; }; then
+	echo "GRUB_ENABLE_CRYPTODISK=y" >> /TARGET/etc/default/grub
 fi
 
 # remove live packages
