@@ -892,7 +892,7 @@ encrypt_drives() {
 			sleep 2
 			if [ $NO_BOOT_PART -eq 1 ]; then
 				# if no /boot then KEY_FILE=$PART.key; KEY_ADDED=1
-				KEY_FILE=$PART".key"
+				KEY_FILE=$(echo $PART | tr "/" "_")".key"
 				generate_encryption_key $KEY_FILE
 				add_encryption_key_slot $PART $PASS $KEY_FILE
 				KEY_ADDED=1
