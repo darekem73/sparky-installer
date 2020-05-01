@@ -1305,7 +1305,7 @@ partitioner() {
 	PART_SCHEMAS[7]="Encrypted LVM, home on root, swap"
 	PART_SCHEMAS[8]="Encrypted LVM, separate home, swap"
 	PART_SCHEMAS[9]="Encrypted LVM, hybrid: two PVs, separate home, swap"
-	PART_SCHEMAS[10]="EXPERIMENTAL: encrypted home on root, no swap, no /boot"
+	PART_SCHEMAS[10]="EXPERIMENTAL: encrypted home on root, no swap, no /boot, luks1"
 	
 	partschemamenu=()
 	for f in ${!PART_SCHEMAS[@]}; do
