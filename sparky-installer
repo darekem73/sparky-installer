@@ -236,7 +236,7 @@ else
 . $DEFLOCDIR/en
 fi
 
-# the first dialog window
+# the first dialog text
 if [ -f /lib/live/mount/medium/live/minimal ] || [ "$CHECKMINI" != "" ]; then
 	INSTALLTEXT1="$LOCAL1 $LOCAL3 $LOCAL4 $LOCAL5\n\n$LOCAL6\nsudo apt update\nsudo apt install sparky-backup-core\n\n$LOCAL7\n$LOCAL8"
 elif [ "$CHECKSERVER" != "" ]; then
@@ -1166,6 +1166,7 @@ automatic_partitioning() {
 						TARGETPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for GRUB installation
 						#part1 bootable
 					fi
+					HOMEPART="Exit" # needed for summary text
 					;;
 			esac
 			;;
@@ -1279,10 +1280,14 @@ partitioner() {
 		exit 1
 	fi
 
+	# check for encrypted drives and notify to chose manual partitioning if the user wants to mount them instead of erase
+	collect_encrypted_drives
+	if [ $? -eq 0 ]; then
+		$DIALOG $TITLE"$TITLETEXT" $MSGBOX $TEXT"Encrypted drives found\n$ENCRYPTED_DRIVES\nIf you want to open and mount them before installation, chose manual partitionig scheme" $HEIGHT $WIDTH
+	fi
 	if [ "$PARTSCHEMA" = "Manual" ]; then
 		#manual partitioning
-		collect_encrypted_drives
-		if [ $? -eq 0 ]; then
+		if [ "$ENCRYPTED_DRIVES" != "" ]; then
 			# would you like to open encrypted drives and use them for installation YES/NO
 			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to open encrypted drives and install to them?" $HEIGHT $WIDTH
 			if [ $? -eq 0 ]; then
