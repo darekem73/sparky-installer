@@ -1244,9 +1244,16 @@ automatic_partitioning() {
 partitioner() {
 	LVM=0
 	CRYPT=0
-
+	
+	# why is it here?
 	if [ "$PARTDRIVE" = "Exit" ]; then
 		exit 1
+	fi
+
+	# check for encrypted drives and notify to chose manual partitioning if the user wants to mount them instead of erase
+	collect_encrypted_drives
+	if [ $? -eq 0 ]; then
+		$DIALOG $TITLE"$TITLETEXT" $MSGBOX $TEXT"Encrypted drives found\n$ENCRYPTED_DRIVES\nIf you want to open and mount them before installation, chose manual partitionig scheme" $HEIGHT $WIDTH
 	fi
 
 	unset PART_SCHEMAS
@@ -1280,11 +1287,6 @@ partitioner() {
 		exit 1
 	fi
 
-	# check for encrypted drives and notify to chose manual partitioning if the user wants to mount them instead of erase
-	collect_encrypted_drives
-	if [ $? -eq 0 ]; then
-		$DIALOG $TITLE"$TITLETEXT" $MSGBOX $TEXT"Encrypted drives found\n$ENCRYPTED_DRIVES\nIf you want to open and mount them before installation, chose manual partitionig scheme" $HEIGHT $WIDTH
-	fi
 	if [ "$PARTSCHEMA" = "Manual" ]; then
 		#manual partitioning
 		if [ "$ENCRYPTED_DRIVES" != "" ]; then
