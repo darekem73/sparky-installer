@@ -845,7 +845,7 @@ parts_to_create_to_text() {
 generate_encryption_key() {
 	KEYFILE="$1"
 	echo $KEYFILE
-	mkdir -m0700 /etc/keys
+	mkdir -p -m0700 /etc/keys
 	umask 0077 && dd if=/dev/urandom bs=1 count=64 of=/etc/keys/$KEYFILE conv=excl,fsync
 }
 
@@ -892,7 +892,7 @@ encrypt_drives() {
 			sleep 2
 			if [ $NO_BOOT_PART -eq 1 ]; then
 				# if no /boot then KEY_FILE=$PART.key; KEY_ADDED=1
-				KEY_FILE=$(echo $PART | tr "/" "_")".key"
+				KEY_FILE=$(echo $PART | tr "/" "_" | sed 's/^.//')".key"
 				generate_encryption_key $KEY_FILE
 				add_encryption_key_slot $PART $PASS $KEY_FILE
 				KEY_ADDED=1
