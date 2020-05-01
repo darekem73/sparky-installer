@@ -843,9 +843,9 @@ parts_to_create_to_text() {
 }
 
 generate_encryption_key() {
-	KEYFILE=$1
+	KEYFILE="$1"
 	mkdir -p -m0700 /etc/keys
-	( umask 0077 && dd if=/dev/urandom bs=1 count=64 of=/etc/keys/$KEYFILE conv=excl,fsync )
+	umask 0077 && dd if=/dev/urandom bs=1 count=64 of=/etc/keys/$KEYFILE conv=excl,fsync
 }
 
 add_encryption_key_slot() {
@@ -884,8 +884,8 @@ encrypt_drives() {
 		PART=$(echo $CMD | cut -d: -f1)
 		PASS=$(echo $CMD | cut -d: -f2)
 		MAPPED=$(echo $CMD | cut -d: -f3)
+		KEY_ADDED=0
 		if [ $FORMAT -eq 1 ]; then
-			KEY_ADDED=0
 			KEY_FILE=""
 			echo $PASS | cryptsetup luksFormat --type $LUKS_TYPE -l ${#PASS} -q -d - $PART
 			sleep 2
