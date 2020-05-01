@@ -844,7 +844,8 @@ parts_to_create_to_text() {
 
 generate_encryption_key() {
 	KEYFILE="$1"
-	mkdir -p -m0700 /etc/keys
+	echo $KEYFILE
+	mkdir -m0700 /etc/keys
 	umask 0077 && dd if=/dev/urandom bs=1 count=64 of=/etc/keys/$KEYFILE conv=excl,fsync
 }
 
