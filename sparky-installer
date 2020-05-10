@@ -13,6 +13,7 @@
 # Auto-partitioning added by darekem73
 # Last update 2020/05/09
 # TODO: optionally add swap to encrypted variants (automatic key generation to encrypt swap)
+# TODO: in manual partitioning add option to create LVM on top of encrypting volumes
 # TODO: introduce language independent variables for text
 # 
 # This script requires either yad or dialog to run
@@ -1527,9 +1528,6 @@ generate_fstab() {
 }
 
 GrubSelectText () {
-	# TODO: grub location makes sense for non-EFI boot (?)
-	# with UEFI GRUB is on the root drive
-
 	## Blank the array in case this function is being rerun
 	GrubMenu=()
 	#Drives=$(cat /proc/partitions | grep -v loop | grep -v "Extended" | grep -v "extended" | grep -v "swap" | grep -v "Swap" | grep -v "Hidden" | grep -v major | grep -v "^$" | awk '{ print $4}')
