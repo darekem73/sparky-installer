@@ -1368,8 +1368,11 @@ partitioner() {
 			encrypt_drives format
 		fi
 	else
-		# delete LVM if present, before partitioning
 		drive_to_part
+		if [ "$PARTDRIVE" = "Exit" ]; then
+			exit 1
+		fi
+		# delete LVM if present, before partitioning
 		clear_lvm
 		automatic_partitioning
 	fi
