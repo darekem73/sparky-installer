@@ -50,9 +50,9 @@ NO_BOOT_PART=0 #/boot partition manadatory for encryption unless "10" EXPERIMENT
 
 # set options depending on mode - text or gui
 DIALOG="`which dialog`"
-HEIGHT="20"
-WIDTH="75"
-MENUHEIGHT="12"
+HEIGHT="24"
+WIDTH="79"
+MENUHEIGHT="14"
 TITLE="--title "
 TEXT=""
 ENTRY="--inputbox "
