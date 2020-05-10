@@ -9,10 +9,12 @@
 # for SparkyLinux by pavroo <pavroo@onet.eu> 2013/08/04
 # Copyright 2013-2020 Under the GNU GPL2 License
 # Last update 2020/04/19 by pavroo
-# Auto-partitioning added by darekem73 2020/04/20
-# TODO: root encryption without separate boot partition, generate key to open with one password prompt
-# TODO: optionally add swap to encrypted variants (automatic key generation to encrypt swap)
 #
+# Auto-partitioning added by darekem73
+# Last update 2020/05/09
+# TODO: optionally add swap to encrypted variants (automatic key generation to encrypt swap)
+# TODO: introduce language independent variables for text
+# 
 # This script requires either yad or dialog to run
 
 # checking to make sure script is running with root privileges
@@ -361,7 +363,7 @@ collect_encryption_parameters() {
 	ALL_OPEN=0
 	# TODO: remove drives from the list if parameters collected
 	while [ $ALL_OPEN -eq 0 ]; do
-		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive to open" $HEIGHT $WIDTH $MENUHEIGHT Exit "Wyjscie" $ENCRYPTED_DRIVES 2>$CHOICE_FILE
+		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive to open" $HEIGHT $WIDTH $MENUHEIGHT Exit "Exit" $ENCRYPTED_DRIVES 2>$CHOICE_FILE
 		if [ $? -eq 0 ]; then
 			OPENDRIVE=`cat $CHOICE_FILE`
 		else
@@ -427,7 +429,7 @@ drive_to_part() {
 		partdrivemenu="$partdrivemenu $partdrive $partdrivesize"
 	done
 	
-	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive to partition" $HEIGHT $WIDTH $MENUHEIGHT Exit "Wyjscie" $partdrivemenu 2>$CHOICE_FILE
+	$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive to partition" $HEIGHT $WIDTH $MENUHEIGHT Exit "Exit" $partdrivemenu 2>$CHOICE_FILE
 	if [ "$?" = "0" ]; then
 		PARTDRIVE=`cat $CHOICE_FILE`
 		PARTDRIVESIZE=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$PARTDRIVE" | awk '{print $2}'`
