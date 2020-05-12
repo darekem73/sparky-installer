@@ -924,6 +924,56 @@ encrypt_drives() {
 	done
 }
 
+configure_lvm() {
+	# TODO: wip
+	# fill in EXCLUDED_PARTS for pvs
+
+	# 1. select pvs (+remove them from the list)
+	PVS_SELECTED=0
+	PVS=""
+	while [ $PVS_SELECTED -eq 0 ]; do
+		DRIVES=`lsblk -l -p | egrep -v $EXCLUDED_PARTS | egrep -v $PVS | awk '{print $1}'`
+		for i in $DRIVES; do
+			partdrive="$i"
+			partdrivesize=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$i" | awk '{print $2}'`
+			partdrivemenu="$partdrivemenu $partdrive $partdrivesize"
+		done
+		
+		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive for lvm pv. You can use partitions or disks but not partition and its host drive at the same time." $HEIGHT $WIDTH $MENUHEIGHT Exit "Exit" $partdrivemenu 2>$CHOICE_FILE
+		if [ "$?" = "0" ]; then
+			PV=`cat $CHOICE_FILE`
+		else
+			PV="Exit"
+		fi
+		rm $CHOICE_FILE
+
+		if [ "$PV" != "Exit" ]; then
+			if [ "$PVS" = "" ]; then
+				PVS="$PV"
+			else
+				PVS="$PVS|$PV" 
+			fi
+		fi
+
+		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to add another pv?" $HEIGHT $WIDTH
+		if [ $? != 0 ]; then
+			PVS_SELECTED=1
+		fi
+	done
+	PVS=$(echo $PVS | tr "|" " ")
+	if [ "$EXCLUDED_PARTS" = "" ]; then
+		EXCLUDED_PARTS="$PVS"
+	else
+		EXCLUDED_PARTS="$EXCLUDED_PARTS|$PVS" 
+	fi
+	pvcreate $PVS
+
+	# 2. create vgs and assign them to pvs (+remove assigned pvs)
+
+	# 3. create lvs in vgs (show vg size, +100%FREE - rest of vg capacity)
+}
+
+
 automatic_partitioning() {
 	case $PARTSCHEMA in
 		"0"|"1"|"2"|"3"|"4") # no encryption
@@ -1345,6 +1395,7 @@ partitioner() {
 			fi
 			# NO - continue
 		fi
+
 		PARTITIONING_DONE=0
 		while [ $PARTITIONING_DONE -eq 0 ]; do
 			drive_to_part
@@ -1357,8 +1408,15 @@ partitioner() {
 				PARTITIONING_DONE=1
 			fi
 		done
-	
-		# if cryptodrives open - they are here
+		
+		# TODO: manual creation of lvm (pvs, vgs, lvs)
+		# $DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to configure lvm?" $HEIGHT $WIDTH
+		# if [ $? != 0 ]; then
+		# 	LVM=1
+		# 	configure_lvm
+		# fi
+
+		# if cryptodrives open $EXCLUDED_PARTS is not empty
 		if [ "$EXCLUDED_PARTS" = "" ]; then
 			EXCLUDED_PARTS="loop|sr0|disk"
 		else
