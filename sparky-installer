@@ -363,7 +363,9 @@ collect_encryption_parameters() {
 	fi
 	ALL_OPEN=0
 	# TODO: remove drives from the list if parameters collected
+	ALREADY_OPEN="@"
 	while [ $ALL_OPEN -eq 0 ]; do
+		ENCRYPTED_DRIVES=$(echo $ENCRYPTED_DRIVES | awk -v EXCL=$ALREADY_OPEN 'BEGIN { RS=" " }; $1 ~ EXCL { getline; next }; { printf "%s ", $0 }')
 		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive to open" $HEIGHT $WIDTH $MENUHEIGHT Exit "Exit" $ENCRYPTED_DRIVES 2>$CHOICE_FILE
 		if [ $? -eq 0 ]; then
 			OPENDRIVE=`cat $CHOICE_FILE`
@@ -394,6 +396,8 @@ collect_encryption_parameters() {
 			else
 				EXCLUDED_PARTS="$EXCLUDED_PARTS|$DRIVE_TO_ENCRYPT"
 			fi
+			# exclude already open drives from the list of candidates for opening
+			ALREADY_OPEN="$ALREADY_OPEN|$DRIVE_TO_ENCRYPT"
 		fi
 	done
 }
