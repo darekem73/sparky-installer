@@ -960,15 +960,29 @@ configure_lvm() {
 			PVS_SELECTED=1
 		fi
 	done
-	PVS=$(echo $PVS | tr "|" " ")
 	if [ "$EXCLUDED_PARTS" = "" ]; then
 		EXCLUDED_PARTS="$PVS"
 	else
 		EXCLUDED_PARTS="$EXCLUDED_PARTS|$PVS" 
 	fi
-	pvcreate $PVS
+	PVS_TO_CREATE=$(echo $PVS | tr "|" " ")
+	pvcreate $PVS_TO_CREATE
 
 	# 2. create vgs and assign them to pvs (+remove assigned pvs)
+	VGS_CREATED=0
+	while [ $VGS_CREATED -eq 0 ]; do
+		$DIALOG $TITLE"$TITLETEXT" $ENTRY $TEXT"Enter VG name" $HEIGHT $WIDTH 2>/tmp/choice.$$
+		if [ "$?" = "0" ]; then
+			VGNAME=`cat /tmp/choice.$$`
+			[ ${#VGNAME} -eq 0 ] && exit 1
+		else
+			exit 1
+		fi
+		# Select PVS + Exit
+		vgcreate $VG_NAME $LVM_PART_DRIVE 
+		# Create another?
+		# No - VGS_CREATED=1
+	done
 
 	# 3. create lvs in vgs (show vg size, +100%FREE - rest of vg capacity)
 }
@@ -1408,8 +1422,9 @@ partitioner() {
 				PARTITIONING_DONE=1
 			fi
 		done
-		
+	
 		# TODO: manual creation of lvm (pvs, vgs, lvs)
+		# old lvm should be visible, no need to notify user for now
 		# $DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to configure lvm?" $HEIGHT $WIDTH
 		# if [ $? != 0 ]; then
 		# 	LVM=1
