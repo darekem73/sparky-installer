@@ -932,14 +932,15 @@ configure_lvm() {
 	PVS_SELECTED=0
 	PVS=""
 	while [ $PVS_SELECTED -eq 0 ]; do
-		DRIVES=`lsblk -l -p | egrep -v $EXCLUDED_PARTS | egrep -v $PVS | awk '{print $1}'`
+		DRIVES=`lsblk -l -p | grep part | egrep -v $EXCLUDED_PARTS | egrep -v $PVS | awk '{print $1}'`
+		partdrivemenu=""
 		for i in $DRIVES; do
 			partdrive="$i"
 			partdrivesize=`lsblk -o NAME,SIZE,TYPE -l -p -b | grep -m 1 "$i" | awk '{print $2}'`
 			partdrivemenu="$partdrivemenu $partdrive $partdrivesize"
 		done
 		
-		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive for lvm pv. You can use partitions or disks but not partition and its host drive at the same time." $HEIGHT $WIDTH $MENUHEIGHT Exit "Exit" $partdrivemenu 2>$CHOICE_FILE
+		$DIALOG $TITLE"$TITLETEXT" $MENU $TEXT"Select drive for lvm pv." $HEIGHT $WIDTH $MENUHEIGHT Exit "Exit" $partdrivemenu 2>$CHOICE_FILE
 		if [ "$?" = "0" ]; then
 			PV=`cat $CHOICE_FILE`
 		else
@@ -953,10 +954,11 @@ configure_lvm() {
 			else
 				PVS="$PVS|$PV" 
 			fi
-		fi
-
-		$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to add another pv?" $HEIGHT $WIDTH
-		if [ $? != 0 ]; then
+			$DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to add another pv?" $HEIGHT $WIDTH
+			if [ $? != 0 ]; then
+				PVS_SELECTED=1
+			fi
+		else
 			PVS_SELECTED=1
 		fi
 	done
@@ -1426,7 +1428,7 @@ partitioner() {
 		# TODO: manual creation of lvm (pvs, vgs, lvs)
 		# old lvm should be visible, no need to notify user for now
 		# $DIALOG $TITLE"$TITLETEXT" $YESNO $TEXT"Do you want to configure lvm?" $HEIGHT $WIDTH
-		# if [ $? != 0 ]; then
+		# if [ $? = 0 ]; then
 		# 	LVM=1
 		# 	configure_lvm
 		# fi
