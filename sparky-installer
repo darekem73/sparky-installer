@@ -47,6 +47,7 @@ CRYPTTAB=""
 FSTAB_BY_UUID=0
 LUKS_TYPE="luks2" #luks1 if no /boot+generate new keyslot to avoid asking for password (for each encrypted drive) and add keys to initramfs
 NO_BOOT_PART=0 #/boot partition manadatory for encryption unless "10" EXPERIMENTAL is chosen
+EXCLUDED_PARTS="@" # quick and dirty, may not be empty as it filters out everything later
 
 # set options depending on mode - text or gui
 DIALOG="`which dialog`"
@@ -930,7 +931,7 @@ configure_lvm() {
 
 	# 1. select pvs (+remove them from the list)
 	PVS_SELECTED=0
-	PVS=""
+	PVS="@" #quick and dirty
 	while [ $PVS_SELECTED -eq 0 ]; do
 		DRIVES=`lsblk -l -p | grep part | egrep -v $EXCLUDED_PARTS | egrep -v $PVS | awk '{print $1}'`
 		partdrivemenu=""
