@@ -1318,12 +1318,6 @@ automatic_partitioning() {
 
 					(( SWAPPARTSIZE=$DEFAULT_SWAP_SIZE ))
 					(( PARTDRIVESIZE=$PARTDRIVESIZE-$SWAPPARTSIZE ))
-					calc_root_size $PARTDRIVESIZE
-					if [ $ROOT_PART_SIZE -eq 0 ]; then
-						echo "Root partition too small"
-						exit 1
-					fi
-					(( PARTDRIVESIZE=$PARTDRIVESIZE-$ROOT_PART_SIZE ))
 
 					if [ "$TESTEFI" != "" ]; then
 						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$SWAPPARTSIZE|3:20: "
@@ -1344,8 +1338,6 @@ automatic_partitioning() {
 						ROOTFSTYPE="ext4" #needed for final message
 						TARGETPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for GRUB installation
 					else 
-						(( SWAPPARTSIZE=$DEFAULT_SWAP_SIZE ))
-						(( PARTDRIVESIZE=$PARTDRIVESIZE-$SWAPPARTSIZE ))
 						ROOT_PART_SIZE=$PARTDRIVESIZE
 						PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE|2:20: "
 						DRIVE_TO_ENCRYPT="$PARTDRIVE""1"
