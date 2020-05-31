@@ -942,13 +942,13 @@ encrypt_drives() {
 		fi
 		if [ "$CRYPTTAB" = "" ]; then
 			if [ "$PASS" = "" ]; then # part or uuid - test
-				CRYPTTAB="$MAPPED:$PART:/dev/urandom	cipher=aes-xts-plain64,size=256,swap,discard"
+				CRYPTTAB="$MAPPED:$UUID:/dev/urandom	cipher=aes-xts-plain64,size=256,swap,discard"
 			else
 				CRYPTTAB="$MAPPED:$UUID:$KEY	$OPTIONS" 
 			fi
 		else
 			if [ "$PASS" = "" ]; then
-				CRYPTTAB="$CRYPTTAB|$MAPPED:$PART:/dev/urandom	cipher=aes-xts-plain64,size=256,swap,discard"
+				CRYPTTAB="$CRYPTTAB|$MAPPED:$UUID:/dev/urandom	cipher=aes-xts-plain64,size=256,swap,discard"
 			else
 				CRYPTTAB="$CRYPTTAB|$MAPPED:$UUID:$KEY	$OPTIONS,initramfs" 
 			fi
