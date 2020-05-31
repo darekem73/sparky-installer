@@ -1116,8 +1116,10 @@ automatic_partitioning() {
 				(( EFIPARTSIZE=$DEFAULT_EFIPARTSIZE*$M ))
 				(( PARTDRIVESIZE=$PARTDRIVESIZE-$EFIPARTSIZE ))
 			fi
-			(( BOOTPARTSIZE=$DEFAULT_BOOTPARTSIZE*$M ))
-			(( PARTDRIVESIZE=$PARTDRIVESIZE-$BOOTPARTSIZE ))
+			if [ "$PARTSCHEMA" != "10" ] && [ "$PARTSCHEMA" != "11" ]; then     # option 10 and 11 don't have boot partition
+				(( BOOTPARTSIZE=$DEFAULT_BOOTPARTSIZE*$M ))
+				(( PARTDRIVESIZE=$PARTDRIVESIZE-$BOOTPARTSIZE ))
+			fi
 			case $PARTSCHEMA in
 				"5") #aio + encryption and no swap
 					LVM=0
