@@ -10,11 +10,20 @@
 # Copyright 2013-2020 Under the GNU GPL2 License
 #
 # Auto-partitioning added by darekem73
-# Last update 2020/05/09
-# TODO: optionally add swap to encrypted variants (automatic key generation to encrypt swap)
+# Last update 2020/05/31
+# TODO: optionally add swap to encrypted variants (automatic key generation to encrypt swap); alternative - add swap file for encrypted installations (option in initial setup)
+# [ ] swap partition or swap file (only with no lvm)
+# [ ] lvm ?
+# [ ] separate home or home on root
+# [ ] encrypted or not (if lvm)
+# [ ] encrypted home (no lvm or lvm separate home)
+# [ ] encrypted root (no lvm)
+# [ ] no separate boot (only swap file if swap cheosen)
 # TODO: in manual partitioning add option to create LVM on top of encrypting volumes
 # TODO: introduce language independent variables for text
-# 
+# TODO: wipefs for deleting fs signature prior to lvm / fdisk (?)
+# TODO: checklist to select options prior to partitioning scheme (instead of option combinations being individual otpions)
+#
 # This script requires dialog to run, as of 2020/05/18 the yad support is removed
 # Last update 2020/05/18 by pavroo
 #
@@ -899,31 +908,43 @@ encrypt_drives() {
 		MAPPED=$(echo $CMD | cut -d: -f3)
 		KEY_ADDED=0
 		if [ $FORMAT -eq 1 ]; then
-			KEY_FILE=""
-			echo $PASS | cryptsetup luksFormat --type $LUKS_TYPE -l ${#PASS} -q -d - $PART
-			sleep 2
-			if [ $NO_BOOT_PART -eq 1 ]; then
-				# if no /boot then KEY_FILE=$PART.key; KEY_ADDED=1
-				KEY_FILE=$(echo $PART | tr "/" "_" | sed 's/^.//')".key"
-				generate_encryption_key $KEY_FILE
-				add_encryption_key_slot $PART $PASS $KEY_FILE
-				KEY_ADDED=1
+			if [ "$PASS" != "" ]; then
+				KEY_FILE=""
+				echo $PASS | cryptsetup luksFormat --type $LUKS_TYPE -l ${#PASS} -q -d - $PART
+				sleep 2
+				if [ $NO_BOOT_PART -eq 1 ]; then
+					# if no /boot then KEY_FILE=$PART.key; KEY_ADDED=1
+					KEY_FILE=$(echo $PART | tr "/" "_" | sed 's/^.//')".key"
+					generate_encryption_key $KEY_FILE
+					add_encryption_key_slot $PART $PASS $KEY_FILE
+					KEY_ADDED=1
+				fi
 			fi
 		fi
-		echo $PASS | cryptsetup luksOpen $PART $MAPPED -l ${#PASS} -d -
-		sleep 2
-		UUID=$(blkid -o value -s UUID $PART)
-		OPTIONS="luks,discard"
-		if [ $KEY_ADDED -eq 1 ]; then
-			KEY=/etc/keys/$KEY_FILE
-			OPTIONS="$OPTIONS,key-slot=1"
-		else
-			KEY="none"
+		if [ "$PASS" != "" ]; then
+			echo $PASS | cryptsetup luksOpen $PART $MAPPED -l ${#PASS} -d -
+			sleep 2
+			UUID=$(blkid -o value -s UUID $PART)
+			OPTIONS="luks,discard"
+			if [ $KEY_ADDED -eq 1 ]; then
+				KEY=/etc/keys/$KEY_FILE
+				OPTIONS="$OPTIONS,key-slot=1"
+			else
+				KEY="none"
+			fi
 		fi
 		if [ "$CRYPTTAB" = "" ]; then
-			CRYPTTAB="$MAPPED:$UUID:$KEY	$OPTIONS" 
+			if [ "$PASS" = "" ]; then
+				CRYPTTAB="$MAPPED:$PART:/dev/urandom	cipher=aes-xts-plain64,size=256,swap,discard"
+			else
+				CRYPTTAB="$MAPPED:$UUID:$KEY	$OPTIONS" 
+			fi
 		else
-			CRYPTTAB="$CRYPTTAB|$MAPPED:$UUID:$KEY	$OPTIONS,initramfs" 
+			if [ "$PASS" = "" ]; then
+				CRYPTTAB="$CRYPTTAB|$MAPPED:$PART:/dev/urandom	cipher=aes-xts-plain64,size=256,swap,discard"
+			else
+				CRYPTTAB="$CRYPTTAB|$MAPPED:$UUID:$KEY	$OPTIONS,initramfs" 
+			fi
 		fi
 	done
 }
@@ -1003,7 +1024,7 @@ automatic_partitioning() {
 				(( PARTDRIVESIZE=$PARTDRIVESIZE-$EFIPARTSIZE ))
 			fi
 			case $PARTSCHEMA in
-				"0") #aio
+				"0") #aio, no swap
 					LVM=0
 					if [ "$TESTEFI" != "" ]; then
 						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20: "
@@ -1082,7 +1103,7 @@ automatic_partitioning() {
 					;;
 			esac
 			;;
-		"5"|"6"|"7"|"8"|"9"|"10") # with encryption
+		"5"|"6"|"7"|"8"|"9"|"10"|"11") # with encryption
 			CRYPT=1
 			if [ "$TESTEFI" != "" ]; then
 				(( EFIPARTSIZE=$DEFAULT_EFIPARTSIZE*$M ))
@@ -1283,6 +1304,70 @@ automatic_partitioning() {
 					fi
 					HOMEPART="Exit" # needed for summary text
 					;;
+				"11") #TODO: EXPERIMENTAL: encrypted home on root, encrypted swap partion, no /boot
+					LVM=0
+					NO_BOOT_PART=1 #with encryption it means adding GRUB_ENABLE_CRYPTODISK=y and chnging to LUKS1
+					LUKS_TYPE="luks1"
+
+					(( SWAPPARTSIZE=$DEFAULT_SWAP_SIZE ))
+					(( PARTDRIVESIZE=$PARTDRIVESIZE-$SWAPPARTSIZE ))
+					calc_root_size $PARTDRIVESIZE
+					if [ $ROOT_PART_SIZE -eq 0 ]; then
+						echo "Root partition too small"
+						exit 1
+					fi
+					(( PARTDRIVESIZE=$PARTDRIVESIZE-$ROOT_PART_SIZE ))
+
+					if [ "$TESTEFI" != "" ]; then
+						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$ROOT_PART_SIZE|3:19:$SWAPPARTSIZE|4:20: "
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""3:none:swap:sw:0 0|$PARTDRIVE""4:/home:ext4:defaults:0 2"
+						TARGETPART=$PARTDRIVE""2 # needed below for GRUB installation
+						ROOTFSTYPE="ext4" #needed for final message
+						HFSTYPE="ext4" #needed below final message
+						HOMEPART=$PARTDRIVE""4 # needed below for final message
+					else
+						PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE|2:19:$SWAPPARTSIZE|3:20: "
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""2:none:swap:sw:0 0|$PARTDRIVE""3:/home:ext4:defaults:0 2"
+						TARGETPART=$PARTDRIVE""1 # needed below for GRUB installation
+						ROOTFSTYPE="ext4" #needed for final message
+						HFSTYPE="ext4" #needed below final message
+						HOMEPART=$PARTDRIVE""3 # needed below for final message
+						#part1 bootable
+					fi
+
+					if [ "$TESTEFI" != "" ]; then
+						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:19:$SWAPPARTSIZE|3:20: "
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""2"
+						DRIVE_TO_ENCRYPT_PASS=""    # empty password = generate password for swap only
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|/dev/mapper/$CRYPT_DRIVE_MAPPED:none:swap:defaults:0 0"
+
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""3"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
+						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVES_TO_ENCRYPT_TEXT_ONLY|$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVES_TO_ENCRYPT|$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="$PARTS_TO_MOUNT|/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+						ROOTFSTYPE="ext4" #needed for final message
+						TARGETPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for GRUB installation
+					else # TODO: not yet done
+						PARTS_TO_CREATE="1:20: "
+						DRIVE_TO_ENCRYPT="$PARTDRIVE""1"
+						get_password "$DRIVE_TO_ENCRYPT encryption"
+						DRIVE_TO_ENCRYPT_PASS=$THE_PASSWORD
+						DRIVES_TO_ENCRYPT_TEXT_ONLY="$DRIVE_TO_ENCRYPT"
+						CRYPT_DRIVE_MAPPED=$(echo $DRIVE_TO_ENCRYPT | awk -F"/" '{print $NF"_crypt"}')
+						DRIVES_TO_ENCRYPT="$DRIVE_TO_ENCRYPT:$DRIVE_TO_ENCRYPT_PASS:$CRYPT_DRIVE_MAPPED"
+						PARTS_TO_MOUNT="/dev/mapper/$CRYPT_DRIVE_MAPPED:/:ext4:errors=remount-ro,defaults:0 1"
+						ROOTFSTYPE="ext4" #needed for final message
+						TARGETPART="/dev/mapper/$CRYPT_DRIVE_MAPPED" # needed below for GRUB installation
+						#part1 bootable
+					fi
+					HOMEPART="Exit" # needed for summary text
+					;;
 			esac
 			;;
 	esac
@@ -1384,6 +1469,7 @@ partitioner() {
 	PART_SCHEMAS[8]="Encrypted LVM, separate home, swap"
 	PART_SCHEMAS[9]="Encrypted LVM, hybrid: two PVs, separate home, swap"
 	PART_SCHEMAS[10]="EXPERIMENTAL: encrypted home on root, no swap, no /boot, luks1"
+	PART_SCHEMAS[11]="EXPERIMENTAL: encrypted home on root, encrypted swap, no /boot, luks1"
 	
 	partschemamenu=()
 	for f in ${!PART_SCHEMAS[@]}; do
