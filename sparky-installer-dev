@@ -919,22 +919,29 @@ encrypt_drives() {
 					add_encryption_key_slot $PART $PASS $KEY_FILE
 					KEY_ADDED=1
 				fi
+			else
+				SWAPPASS=$(dd if=/dev/urandom count=8 bs=1)
+				echo $SWAPPASS | cryptsetup luksFormat --type $LUKS_TYPE -l ${#SWAPPASS} -q -d - $PART
+				sleep 2
 			fi
 		fi
 		if [ "$PASS" != "" ]; then
 			echo $PASS | cryptsetup luksOpen $PART $MAPPED -l ${#PASS} -d -
 			sleep 2
-			UUID=$(blkid -o value -s UUID $PART)
-			OPTIONS="luks,discard"
-			if [ $KEY_ADDED -eq 1 ]; then
-				KEY=/etc/keys/$KEY_FILE
-				OPTIONS="$OPTIONS,key-slot=1"
-			else
-				KEY="none"
-			fi
+		else
+			echo $SWAPPASS | cryptsetup luksOpen $PART $MAPPED -l ${#SWAPPASS} -d -
+			sleep 2
+		fi
+		UUID=$(blkid -o value -s UUID $PART)
+		OPTIONS="luks,discard"
+		if [ $KEY_ADDED -eq 1 ]; then
+			KEY=/etc/keys/$KEY_FILE
+			OPTIONS="$OPTIONS,key-slot=1"
+		else
+			KEY="none"
 		fi
 		if [ "$CRYPTTAB" = "" ]; then
-			if [ "$PASS" = "" ]; then
+			if [ "$PASS" = "" ]; then # part or uuid - test
 				CRYPTTAB="$MAPPED:$PART:/dev/urandom	cipher=aes-xts-plain64,size=256,swap,discard"
 			else
 				CRYPTTAB="$MAPPED:$UUID:$KEY	$OPTIONS" 
@@ -1317,23 +1324,6 @@ automatic_partitioning() {
 						exit 1
 					fi
 					(( PARTDRIVESIZE=$PARTDRIVESIZE-$ROOT_PART_SIZE ))
-
-					if [ "$TESTEFI" != "" ]; then
-						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:20:$ROOT_PART_SIZE|3:19:$SWAPPARTSIZE|4:20: "
-						PARTS_TO_MOUNT="$PARTDRIVE""1:/boot/efi:vfat:defaults:0 0|$PARTDRIVE""2:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""3:none:swap:sw:0 0|$PARTDRIVE""4:/home:ext4:defaults:0 2"
-						TARGETPART=$PARTDRIVE""2 # needed below for GRUB installation
-						ROOTFSTYPE="ext4" #needed for final message
-						HFSTYPE="ext4" #needed below final message
-						HOMEPART=$PARTDRIVE""4 # needed below for final message
-					else
-						PARTS_TO_CREATE="1:20:$ROOT_PART_SIZE|2:19:$SWAPPARTSIZE|3:20: "
-						PARTS_TO_MOUNT="$PARTDRIVE""1:/:ext4:errors=remount-ro,defaults:0 1|$PARTDRIVE""2:none:swap:sw:0 0|$PARTDRIVE""3:/home:ext4:defaults:0 2"
-						TARGETPART=$PARTDRIVE""1 # needed below for GRUB installation
-						ROOTFSTYPE="ext4" #needed for final message
-						HFSTYPE="ext4" #needed below final message
-						HOMEPART=$PARTDRIVE""3 # needed below for final message
-						#part1 bootable
-					fi
 
 					if [ "$TESTEFI" != "" ]; then
 						PARTS_TO_CREATE="1:1:$EFIPARTSIZE|2:19:$SWAPPARTSIZE|3:20: "
