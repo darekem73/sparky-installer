@@ -10,15 +10,15 @@
 # Copyright 2013-2020 Under the GNU GPL2 License
 #
 # Auto-partitioning added by darekem73
-# Last update 2020/05/31
+# Last update 2020/06/01
 # TODO: optionally add swap to encrypted variants (automatic key generation to encrypt swap); alternative - add swap file for encrypted installations (option in initial setup)
-# [ ] swap partition or swap file (only with no lvm)
-# [ ] lvm ?
-# [ ] separate home or home on root
-# [ ] encrypted or not (if lvm)
-# [ ] encrypted home (no lvm or lvm separate home)
-# [ ] encrypted root (no lvm)
-# [ ] no separate boot (only swap file if swap cheosen)
+# [ ] Do you want swap
+# [ ] Do you want lvm (unencrypted lvm REQUIRES /boot)
+# [ ] Do you want separate home
+# [ ] Do you want home on separate partition (for lvm only)
+# [ ] Do you want encryption (root / home) (?)
+# [ ] no separate boot (lvm w/o encryption not possible)
+# ( dialog --title "Title" --checklist "Text" 0 0 0 a "Do you want swap" off b c on d e off 2>/tmp/tst || echo "cancelled" > /tmp/tst ) && cat /tmp/tst
 # TODO: in manual partitioning add option to create LVM on top of encrypting volumes
 # TODO: introduce language independent variables for text
 # TODO: wipefs for deleting fs signature prior to lvm / fdisk (?)
