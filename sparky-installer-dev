@@ -63,9 +63,9 @@ EXCLUDED_PARTS="@" # quick and dirty, may not be empty as it filters out everyth
 
 # set options - text only
 DIALOG="`which dialog`"
-HEIGHT="24"
-WIDTH="85"
-MENUHEIGHT="14"
+HEIGHT="0"
+WIDTH="0"
+MENUHEIGHT="0"
 TITLE="--title "
 TEXT=""
 ENTRY="--inputbox "
